@@ -43,7 +43,8 @@ try {
     writeFileSync(join(dir, "in.raw"), Buffer.from(planes.buffer));
     execFileSync(ff, ["-v", "error", "-f", "rawvideo", "-pix_fmt", "gbrp16le", "-s", `${N}x1`, "-i", join(dir, "in.raw"),
       "-vf", `zscale=tin=smpte2084:t=linear:npl=${SDR_WHITE}:pin=bt2020:p=bt2020:rin=full:r=full,format=gbrpf32le`, "-f", "rawvideo", join(dir, "out.raw")]);
-    const out = new Float32Array(readFileSync(join(dir, "out.raw")).buffer.slice(0));
+    // a Buffer can be a view into a larger shared ArrayBuffer (Node 24 returns files that way): copy only its bytes
+    const o = readFileSync(join(dir, "out.raw")), out = new Float32Array(o.buffer.slice(o.byteOffset, o.byteOffset + o.byteLength));
     let worst = 0;
     for (let i = 0; i < N; i++) {
       const e = raw[i * 3] / 65535, ref = pqEotf(e) / SDR_WHITE, z = out[i]; // G plane first
