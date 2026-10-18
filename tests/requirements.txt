@@ -1,0 +1,8 @@
+# Independent reference tools the unit tests (npm test) compare LUCID's own decoders and converters against:
+#   numpy + Pillow   PNG decoder cross-check                  (tests/pngdecode.test.ts, required)
+#   imageio-ffmpeg   ffmpeg/zimg colour-conversion cross-checks (tests/yuv.test.ts, tests/hdr.test.ts; skipped without it)
+# Pinned so results are reproducible locally and in CI:  python3 -m pip install -r tests/requirements.txt
+# The browser end-to-end suites (tests/e2e) additionally need: playwright (+ python3 -m playwright install chromium).
+numpy==2.3.5
+pillow==12.3.0
+imageio-ffmpeg==0.6.0

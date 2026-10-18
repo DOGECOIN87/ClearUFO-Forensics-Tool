@@ -25,7 +25,8 @@ npm install
 npm run dev          # http://localhost:5173  (development)
 npm run build        # type-check + production build into ./release
 npm run preview      # serve ./release on http://localhost:4173
-npm test             # unit tests (hashing, DSP kernels, uncompressed writers)
+npm test             # unit tests (hashing, DSP kernels, uncompressed writers); their cross-checks need Python 3 with
+                     #   python3 -m pip install -r tests/requirements.txt   (numpy, Pillow, imageio-ffmpeg)
 npm run test:lossless  # every lossless export checked with ffmpeg/zipfile (needs the dev server, see URL)
 npm run test:ai        # the AI assistant end to end against a mock model server (needs the dev server)
 ```

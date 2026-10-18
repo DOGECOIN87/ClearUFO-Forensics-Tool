@@ -30,6 +30,14 @@ jobs:
           cache: npm
       - name: Install (exact versions from package-lock.json)
         run: npm ci
+      # the unit tests cross-check LUCID against independent references (Pillow/numpy, ffmpeg/zimg)
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: tests/requirements.txt
+      - name: Install the unit tests' reference tools (pinned)
+        run: python -m pip install -r tests/requirements.txt
       - name: Unit tests
         run: npm test
       - name: Build (type check, MCP catalog, Vite, single-file HTML)
