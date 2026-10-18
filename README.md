@@ -5,6 +5,11 @@ panel layout of the reference desktop forensic suite (Filters, Tools, Viewer, Fi
 on a dockable [Trellis](https://trellisui.com) workspace. All processing happens locally, in a Web Worker, on a
 32‑bit floating point pipeline. No media ever leaves the machine.
 
+**▶ Live app: [dogecoin87.github.io/ClearUFO-Forensics-Tool](https://dogecoin87.github.io/ClearUFO-Forensics-Tool/)**: nothing to
+install. The page only delivers the app; your media is still processed entirely in your browser and is never uploaded.
+Portable single-file version: [LUCID-Forensic-Workbench.html](https://dogecoin87.github.io/ClearUFO-Forensics-Tool/LUCID-Forensic-Workbench.html)
+(right-click › *Save link as…* to keep an offline copy).
+
 ![Sample case](docs/img/doc_sample.png)
 
 | Fourier notch filter (periodic noise) | GOP / frame analysis with frame-accurate decoding |
@@ -30,6 +35,12 @@ npm run test:ai        # the AI assistant end to end against a mock model server
 Chrome, Edge, Firefox and Safari. (Safari does not let background workers of pages opened from disk read files, so
 there the engine runs in the page: everything works, but the interface can pause during heavy filters. Serving the
 `release` folder from any web server avoids this.)
+
+**Hosting:** every push to `main` is unit-tested, built and published to GitHub Pages by
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml) (**Actions › Deploy to GitHub Pages › Run workflow** redeploys
+by hand); if a test fails, the site keeps the previous version. `release/` is plain static files with relative paths, so
+any static web server or sub-folder works as well. Serve it over HTTPS (or from `localhost`): browsers only enable
+features such as WebGPU, the clipboard and private file storage on secure pages.
 
 Try it without any evidence: **Help › Load Sample Case** builds three deterministic synthetic chains
 (degraded license plate, periodic noise, resolution chart). Or let the assistant drive: **Ctrl+I**, set up a model

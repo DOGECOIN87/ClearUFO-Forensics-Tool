@@ -51,7 +51,9 @@ export class Mcp extends Emitter<{ change: [] }> {
 
   /** After the app is up: link to the bridge if it serves this page (or is configured), register WebMCP. */
   async start() {
-    if (location.protocol === "http:" || location.protocol === "https:") {
+    // The bridge serves LUCID over plain HTTP only (mcp/lucid-mcp.mjs), so only an http: page can be one it serves.
+    // Probing from https: hosts (e.g. GitHub Pages) would only cost a request, and a 404 in the console, on every load.
+    if (location.protocol === "http:") {
       try {
         const r = await fetch(new URL("lucid/info", location.href), { cache: "no-store" });
         const j = r.ok && (r.headers.get("content-type") ?? "").includes("json") ? await r.json() : null;
