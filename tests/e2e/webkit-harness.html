@@ -1,0 +1,108 @@
+<!doctype html>
+<!-- Self-driving test of the staging path in a WebKit engine with the Origin Private File System enabled
+     (driven by tests/e2e/webkit_staging.py; Playwright's WebKit build has these features switched off).
+     Runs LUCID in a same-origin frame, captures its downloads and posts everything to the results server. -->
+<meta charset="utf-8">
+<title>LUCID WebKit staging harness</title>
+<iframe id="app" src="/" allow="camera; microphone" style="width: 1400px; height: 860px; border: 0"></iframe>
+<script type="module">
+const R = new URLSearchParams(location.search).get("results") || "http://127.0.0.1:8765";
+const post = (path, body) => fetch(R + path, { method: "POST", body }).catch(() => {});
+const log = (m) => post("/log", String(m));
+const upload = (name, data) => post("/upload?name=" + encodeURIComponent(name), data);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function until(f, ms, what) {
+  const t0 = Date.now();
+  for (;;) {
+    try { const v = await f(); if (v) return v; } catch { /* not yet */ }
+    if (Date.now() - t0 > ms) throw new Error("timeout waiting for " + what);
+    await sleep(100);
+  }
+}
+const out = { checks: [] };
+const check = (name, ok, info = "") => { out.checks.push({ name, ok: !!ok, info: String(info) }); void log((ok ? "PASS " : "FAIL ") + name + "  [" + info + "]"); };
+
+(async () => {
+  try {
+    const frame = document.getElementById("app");
+    const w = await until(() => frame.contentWindow?.lucid?.store && frame.contentWindow, 60000, "the app");
+    const L = w.lucid, doc = w.document;
+    const button = (label) => [...doc.querySelectorAll(".dlg-footer button")].reverse().find((b) => b.textContent.trim() === label);
+    const listStaging = async () => { const dir = await (await w.navigator.storage.getDirectory()).getDirectoryHandle("lucid-staging"); const a = []; for await (const k of dir.keys()) a.push(k); return { dir, names: a }; };
+    // downloads are captured (and fetched from their blob: links) instead of being saved by the browser
+    const downloads = [];
+    w.HTMLAnchorElement.prototype.click = function () { if (this.download) downloads.push({ href: this.href, name: this.download }); };
+    out.ua = w.navigator.userAgent;
+
+    const st = await L.actions.staging.status();
+    out.staging = { ok: st.ok, api: st.api, reason: st.reason, room: st.room };
+    check("staging works in this engine", st.ok, JSON.stringify(out.staging));
+
+    const blob = await (await fetch(R + "/media/bgr24.avi")).blob();
+    await L.actions.loadFiles([new w.File([blob], "bgr24.avi", { type: "video/x-msvideo" })]);
+    await until(() => L.store.lastRender?.md5, 60000, "the first frame");
+    await upload("app_hashes.json", JSON.stringify(await L.engine.call("hashFrames", L.store.ui.chainId, "h1")));
+
+    // 1. Write Video without a save dialog: staged on disk, verified, downloaded
+    L.actions.staging.minBytes = 0;
+    L.store.savePrefs({ saveToDisk: false });
+    void L.actions.writeVideo();
+    await until(() => doc.querySelector(".dlg .export-note"), 15000, "the Write Video dialog");
+    const note = [...doc.querySelectorAll(".dlg")].pop().querySelector(".export-note").innerText;
+    button("Write").click();
+    await until(() => /Written/.test(doc.querySelector(".toasts")?.innerText || ""), 60000, "the write to finish");
+    const toast = doc.querySelector(".toasts").innerText;
+    const dl = await until(() => downloads.find((d) => d.name.endsWith(".avi")), 10000, "the download");
+    const bytes = await (await fetch(dl.href)).arrayBuffer();
+    await upload("staged.avi", bytes);
+    check("staged export: dialog note, verified, downloaded", /browser's storage/.test(note) && /staged on disk/.test(toast) && /Verified/.test(toast), note.split("\n").pop() + " | " + toast.split("\n").pop().slice(0, 160));
+
+    const it = L.actions.staging.list()[0];
+    const { dir, names } = await listStaging();
+    const f = await (await dir.getFileHandle(it.entry)).getFile();
+    const q = await w.navigator.locks.query();
+    check("staging file kept, same size as the download, locked by this tab", f.size === it.bytes && f.size === bytes.byteLength && q.held.some((l) => l.name === "lucid-staged:" + it.entry) && names.length === 1, it.entry + " " + f.size);
+
+    // 2. sweep: orphans older than an hour go, recent and locked files stay
+    const mk = async (n) => { const wr = await (await dir.getFileHandle(n, { create: true })).createWritable(); await wr.write(new Uint8Array(10)); await wr.close(); return n; };
+    const old = await mk((Date.now() - 2 * 3600e3).toString(36) + "-old1-orphan.avi");
+    const recent = await mk(Date.now().toString(36) + "-new1-recent.avi");
+    const removed = await L.actions.staging.sweep();
+    const left = (await listStaging()).names;
+    check("sweep removes old orphans only", removed === 1 && !left.includes(old) && left.includes(recent) && left.includes(it.entry), removed + " " + left.join(", "));
+    const freed = await L.actions.staging.free([it.entry]);
+    const left2 = (await listStaging()).names;
+    check("Free removes the staging file", freed === it.bytes && !left2.includes(it.entry), left2.join(", "));
+    await dir.removeEntry(recent);
+
+    // 3. live recording from a mock camera, staged through the engine worker (RemoteSink)
+    let cam = "ok";
+    try { const s = await w.navigator.mediaDevices.getUserMedia({ video: true }); s.getTracks().forEach((t) => t.stop()); } catch (e) { cam = e.name + ": " + e.message; }
+    out.camera = cam;
+    if (cam === "ok") {
+      // a device with 2 GB of memory (like many phones): recordings in memory stop at 0.5 GB, so the larger
+      // browser storage is chosen (this engine's quota is only 1000 MB; Safari's is most of the disk)
+      Object.defineProperty(w.navigator, "deviceMemory", { value: 2, configurable: true });
+      const n0 = L.store.project.chains.length;
+      void L.actions.captureVideo();
+      await until(() => button("Camera"), 10000, "the Video Input dialog");
+      button("Camera").click();
+      await until(() => { const v = doc.querySelector(".dlg video"); return v && v.videoWidth > 0; }, 20000, "the camera preview");
+      await until(() => !/Checking/.test(doc.querySelector(".dlg .export-note")?.innerText || "Checking"), 10000, "the storage check");
+      const capNote = doc.querySelector(".dlg .export-note").innerText;
+      button("Start Recording").click();
+      await sleep(2500);
+      const status = doc.querySelector(".capture-status")?.textContent || "";
+      button("Stop and Load").click();
+      await until(() => L.store.project.chains.length > n0 && L.store.lastRender?.md5 && L.store.lastRender.chainId === L.store.ui.chainId, 60000, "the recording to load");
+      const cdl = await until(() => downloads.find((d) => d.name.startsWith("Capture")), 10000, "the recording download");
+      await upload("capture.avi", await (await fetch(cdl.href)).arrayBuffer());
+      await upload("capture_hashes.json", JSON.stringify(await L.engine.call("hashFrames", L.store.ui.chainId, "h2")));
+      const capToast = doc.querySelector(".toasts").innerText;
+      check("recording staged in the browser's storage, downloaded and loaded", /browser's storage/.test(capNote) && /staged on disk/.test(capToast), capNote.split("\n").pop() + " | " + status);
+    }
+    out.ok = true;
+  } catch (e) { out.ok = false; out.error = String(e?.stack || e); }
+  await post("/done", JSON.stringify(out));
+})();
+</script>

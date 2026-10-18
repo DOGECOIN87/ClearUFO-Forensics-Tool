@@ -1,0 +1,45 @@
+{
+  "name": "lucid-forensic-workbench",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 5173",
+    "build": "tsc --noEmit && npm run mcp:catalog && vite build && node scripts/build-single.mjs",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/run-unit-tests.mjs",
+    "test:e2e": "python3 tests/e2e/run_all.py",
+    "test:mobile": "python3 tests/e2e/mobile.py",
+    "test:repro": "python3 tests/e2e/filter_hashes.py",
+    "test:lossless": "python3 tests/e2e/lossless.py",
+    "test:fidelity": "python3 tests/e2e/fidelity.py",
+    "test:quality": "python3 tests/e2e/quality.py",
+    "test:ai": "python3 tests/e2e/ai.py",
+    "test:staging-large": "python3 tests/e2e/staging_large.py",
+    "test:webkit-staging": "python3 tests/e2e/webkit_staging.py",
+    "mcp:catalog": "esbuild scripts/gen-mcp-catalog.ts --bundle --platform=node --format=esm --outfile=node_modules/.lucid-tests/gen-mcp-catalog.mjs --log-level=warning --external:mediabunny --external:utif2 && node node_modules/.lucid-tests/gen-mcp-catalog.mjs",
+    "icons": "node scripts/gen-icons.mjs",
+    "wasm": "node scripts/gen-wasm.mjs",
+    "mcp": "node mcp/lucid-mcp.mjs --http",
+    "test:mcp": "python3 tests/e2e/mcp.py",
+    "test:hdr": "python3 tests/e2e/hdr.py",
+    "test:gpu": "python3 tests/e2e/gpu_preview.py"
+  },
+  "dependencies": {
+    "@danfessler/trellis": "0.3.0",
+    "mediabunny": "1.61.5",
+    "utif2": "4.1.0"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.3.1",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@modelcontextprotocol/server": "^2.3.1",
+    "@vscode/codicons": "0.0.46-24",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.0",
+    "vite": "^7.1.0",
+    "wabt": "1.0.37",
+    "zod": "^4.6.7"
+  }
+}
