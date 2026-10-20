@@ -24,7 +24,8 @@
     "mcp": "node mcp/lucid-mcp.mjs --http",
     "test:mcp": "python3 tests/e2e/mcp.py",
     "test:hdr": "python3 tests/e2e/hdr.py",
-    "test:gpu": "python3 tests/e2e/gpu_preview.py"
+    "test:gpu": "python3 tests/e2e/gpu_preview.py",
+    "test:temporal": "python3 tests/e2e/temporal.py"
   },
   "dependencies": {
     "@danfessler/trellis": "0.3.0",

@@ -152,6 +152,7 @@ const REF = {
   sr: "M. Irani, S. Peleg, \"Improving resolution by image registration\", CVGIP: Graphical Models and Image Processing 53(3), 1991; S. Farsiu et al., \"Fast and robust multiframe super resolution\", IEEE Trans. Image Processing 13(10), 2004.",
   deint: "G. de Haan, E.B. Bellers, \"Deinterlacing — An overview\", Proceedings of the IEEE 86(9), 1998.",
   sigma: "P.J. Huber, \"Robust Statistics\", Wiley, 1981 (sigma-clipped mean).",
+  tnr: "J.C. Brailean, R.P. Kleihorst, S. Efstratiadis, A.K. Katsaggelos, R.L. Lagendijk, \"Noise reduction filters for dynamic image sequences: a review\", Proceedings of the IEEE 83(9), 1995.",
 };
 
 // ---------------------------------------------------------------- catalog
@@ -476,6 +477,18 @@ export const FILTER_LIST: FilterDef[] = [
     description: "Averages several frames to reduce the noise.",
     hint: "Hint: stabilize the video and select the range of frames before averaging. \"All Frames\" outputs a single integrated frame.",
     params: [sel("mode", "Frames", [["all", "All Frames"], ["window", "Moving Window"]], "all"), int("window", "Window Size", 2, 200, 5, { show: (p) => p.mode === "window" }), sel("method", "Method", [["mean", "Mean"], ["median", "Median"], ["sigma", "Sigma Clipped Mean"]], "mean"), num("sigma", "Sigma", 1, 5, 2, { decimals: 2, show: (p) => p.method === "sigma" })],
+  },
+  {
+    id: "temporal_smoothing", name: "Temporal Smoothing", category: "Integrate", kind: "filter", temporal: true, reference: REF.tnr,
+    description: "Reduces the noise of a video by combining each frame with its neighbors (moving window); the number of frames does not change.",
+    hint: "Hint: stabilize the video first if the camera moves. Protect Moving Objects keeps moving subjects free of ghost trails: raise the Motion Threshold for very noisy footage.",
+    params: [
+      int("size", "Size", 2, 31, 5, { help: "Frames combined for each output frame: the current frame and its neighbors, half before and half after (fewer at the start and end of the clip). Larger windows remove more noise." }),
+      sel("method", "Method", [["mean", "Mean"], ["gaussian", "Gaussian Weighted"], ["median", "Median"]], "mean", { help: "Mean: every frame of the window weighs the same (classic moving average). Gaussian Weighted: the closer a frame, the more it weighs, which keeps more of the motion. Median: also removes short-lived specks such as sparks, snow and dropouts." }),
+      bool("protect", "Protect Moving Objects", true, { help: "Leaves out the pixels of neighboring frames that differ from the current frame, so moving subjects leave no ghost trails. Still areas are smoothed as usual." }),
+      num("threshold", "Motion Threshold", 1, 100, 12, { decimals: 1, show: (p) => p.protect !== false, help: "Difference to the current frame (largest of R, G and B in 0-255 levels, weighted mean over 3x3 pixels) above which a pixel counts as moving and is left out: changes of brightness and of color both count. Raise it for very noisy footage, lower it if faint ghosts remain." }),
+      bool("showMask", "Show Protected Areas", false, { show: (p) => p.protect !== false, help: "Shows the image in gray with the pixels left out because of motion in red (stronger where more frames were left out), to check the threshold. Turn it off before exporting." }),
+    ],
   },
   {
     id: "super_resolution", name: "Super Resolution", category: "Integrate", kind: "filter", temporal: true, slow: true, reference: REF.sr, overlayOn: "any",

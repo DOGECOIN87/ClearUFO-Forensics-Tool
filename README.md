@@ -224,7 +224,7 @@ exported uncompressed.
 
 ---
 
-## Processing: 84 filters in 17 categories
+## Processing: 85 filters in 17 categories
 
 Load · Link · Write · Select Frames · Deinterlacing · Edit · Channels · Adjust · Extract · Verify · Measure ·
 Sharpen · Denoise · Deblurring · Stabilization · Integrate · Presentation. Full list with parameters and
@@ -233,7 +233,9 @@ scientific references: **[docs/FILTERS.md](docs/FILTERS.md)**. Highlights:
 * **Deblurring** — motion (draw the blur trail), optical (disk), Gaussian and **nonlinear** (free‑form PSF path)
   with Wiener, Tikhonov or Richardson–Lucy deconvolution; two color channels per complex FFT.
 * **Stabilization / integration** — NCC template tracking with sub‑pixel refinement, phase‑correlation global
-  stabilization, frame averaging (mean / median / sigma‑clipped), multi‑frame **super resolution**.
+  stabilization, frame averaging (mean / median / sigma‑clipped), multi‑frame **super resolution**, and
+  **temporal smoothing** — moving‑window noise reduction that keeps every frame (mean, Gaussian‑weighted or
+  median), with motion protection so moving subjects leave no ghost trails.
 * **Frame selection** — range/sparse/single, I/P/B selection from the bitstream, duplicate removal,
   demultiplexing of multiplexed CCTV, motion detection.
 * **Analysis** — Fourier spectrum and notch filter, edge detection, bit planes, error level analysis,
@@ -292,6 +294,12 @@ Exports carry **no compression of any kind** unless lossy formats are explicitly
 ---
 
 ## Validation (automated)
+
+`python3 tests/e2e/temporal.py` (`npm run test:temporal`) — **9/9**: Temporal Smoothing on a real VP9 clip keeps the
+frame count, size, frame rate and timestamps; Mean without protection equals Frame Averaging's Moving Window frame
+for frame; without protection the moving shapes smear (11% of the pixels off by more than 20 levels), with
+protection none do (0%, mean difference 0.09 levels), changes of color at the same brightness included; Show
+Protected Areas marks the moving parts in red on a gray image.
 
 New in this version (Chromium): `python3 tests/e2e/mcp.py` — **83/83**: the official MCP SDKs (v1 1.32, v2 2.3) as
 clients of the bridge over stdio (relayed) and HTTP in both protocol eras, transport security and policy checks; as
@@ -407,9 +415,11 @@ compression error (what ELA measures) within 0.03 levels, ELA maps correlated 0.
 
 `npm test` runs the unit tests — among them the assistant core (45 checks: SSE parsing identical for every split of
 the stream, streamed OpenAI and Anthropic tool calls assembled from fragments, conversation conversion keeping tool
-calls paired and Anthropic turns alternating, Gemini schema adaptation, parameter validation against all 84 filter
+calls paired and Anthropic turns alternating, Gemini schema adaptation, parameter validation against all 85 filter
 schemas, the tool catalogue's JSON schemas) — and MD5/SHA‑1/SHA‑256 against OpenSSL vectors (incl. streaming), median network vs
-brute force, FFT round trip (5.7e‑14), Wiener deconvolution, resampling, homography, YUV ranges, curves, the JPEG
+brute force, FFT round trip (5.7e‑14), Wiener deconvolution, resampling, homography, YUV ranges, curves, temporal
+smoothing (bit‑exact against a per‑pixel reference for every size, method and protection setting, clip edges and
+the low‑memory streaming path included; no ghost trails with motion protection; noise down to 1/√N), the JPEG
 model (libjpeg quantization tables, golden output), file type detection (46 signatures plus a corpus of real files)
 with project validation, plain‑language messages for browser API errors, the touch wording of hints, the YUV
 converter (106 checks: Nearest bit‑identical to earlier versions for 8/10/12‑bit and NV12, linear ramps reproduced
@@ -442,7 +452,7 @@ UI thread (vanilla TypeScript)                       Engine worker (Web Worker)
 │ App shell (menus, toolbar, status bar)   │◄──────►│ Engine: chain graph → hashed nodes → LRU    │
 │ Trellis workspace with 6 panel types     │ frames │ Sources: Mediabunny+WebCodecs, AVI, DVR,    │
 │ Store (project doc + undo, UI state)     │ (transf│          images/TIFF, sequences, synthetic  │
-│ Player, audio (Mediabunny + Web Audio)   │ erable)│ Filters: 84 implementations (float RGBA)    │
+│ Player, audio (Mediabunny + Web Audio)   │ erable)│ Filters: 85 implementations (float RGBA)    │
 │ Media-element fallback decoder           │        │ Kernels: FFT/deconvolution, conv, median,   │
 │ Report / project / session (IndexedDB)   │        │          geometry, color, registration      │
 └──────────────────────────────────────────┘        │ Writers: AVI OpenDML, TIFF/PNG 8/16/32f, ZIP│

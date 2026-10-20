@@ -1,6 +1,6 @@
 # Filter Reference
 
-84 filters in 17 categories (generated from `src/shared/filters.ts`).
+85 filters in 17 categories (generated from `src/shared/filters.ts`).
 
 ## Load
 
@@ -9,7 +9,7 @@ _Loads image and video files._
 | Filter | Description | Parameters (defaults) |
 |---|---|---|
 | **Image Loader** | Loads an image from file. | File: — |
-| **Video Loader** | Loads image and video files. | File: —<br>Video Engine: WebCodecs (frame accurate)<br>Color Range: From File<br>Color Matrix: From File<br>Chroma Filter: Bicubic (highest quality)<br>Chroma Siting: From File |
+| **Video Loader** | Loads image and video files. | File: —<br>Video Engine: WebCodecs (frame accurate)<br>Color Range: From File<br>Color Matrix: From File<br>Chroma Filter: Bicubic (highest quality)<br>Chroma Siting: From File<br>HDR Video: Tone map to SDR (BT.2390)<br>HDR Peak (cd/m²) (200–10000): 1000 |
 | **Sequence Loader** | Loads a sequence of images as a video. | Files: —<br>Frame Rate (0.1–240): 25.000 |
 | **Test Pattern** | Generates synthetic test material to validate the processing. | Pattern: License Plate (degraded)<br>Width (64–3840): 640<br>Height (64–2160): 360<br>Frames (1–10000): 60<br>Frame Rate (1–120): 25.00<br>Motion Blur (0–40): 9.0<br>Blur Angle (-90–90): 12<br>Noise (0–60): 10.0<br>Camera Shake (0–30): 4.0<br>Seed (0–9999): 7 |
 
@@ -184,6 +184,7 @@ _Combines information of several frames._
 | Filter | Description | Parameters (defaults) |
 |---|---|---|
 | **Frame Averaging** | Averages several frames to reduce the noise.<br><sub>Ref.: P.J. Huber, "Robust Statistics", Wiley, 1981 (sigma-clipped mean).</sub> | Frames: All Frames<br>Window Size (2–200): 5<br>Method: Mean<br>Sigma (1–5): 2.00 |
+| **Temporal Smoothing** | Reduces the noise of a video by combining each frame with its neighbors (moving window); the number of frames does not change.<br><sub>Ref.: J.C. Brailean, R.P. Kleihorst, S. Efstratiadis, A.K. Katsaggelos, R.L. Lagendijk, "Noise reduction filters for dynamic image sequences: a review", Proceedings of the IEEE 83(9), 1995.</sub> | Size (2–31): 5<br>Method: Mean<br>Protect Moving Objects: Yes<br>Motion Threshold (1–100): 12.0<br>Show Protected Areas: No |
 | **Super Resolution** ⏱ | Combines the frames with sub-pixel registration to increase the resolution.<br><sub>Ref.: M. Irani, S. Peleg, "Improving resolution by image registration", CVGIP: Graphical Models and Image Processing 53(3), 1991; S. Farsiu et al., "Fast and robust multiframe super resolution", IEEE Trans. Image Processing 13(10), 2004.</sub> | Scale Factor (2–4): 2<br>Registration Region (optional): —<br>Maximum Frames (2–200): 30<br>Splat Kernel: Gaussian |
 
 ## Presentation
