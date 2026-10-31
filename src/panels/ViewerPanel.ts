@@ -128,7 +128,7 @@ export class ViewerPanel {
   private buildWelcome(): HTMLElement {
     const a = this.ctx.actions;
     return h("div", { class: "welcome" },
-      h("div", { class: "welcome-logo", html: logoSvg(BRAND.letters, 150) }),
+      h("div", { class: "welcome-logo", html: logoSvg(150) }),
       h("div", { class: "welcome-title" }, `Welcome to ${BRAND.name} ${BRAND.edition}`),
       h("div", { class: "welcome-sub" }, isCoarsePointer() ? "Open an image or video to start" : "Drag an image or video here to start"),
       h("div", { class: "welcome-sub" }, "Or go to Help / Quick Start to learn"),

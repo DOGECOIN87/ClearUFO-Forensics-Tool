@@ -45,9 +45,9 @@ export async function buildReport(ctx: AppCtx, progress: (label: string, v: numb
   const css = `
   body{font:13px/1.45 "Segoe UI",Roboto,Arial,sans-serif;color:#1d2330;margin:0;background:#eef0f4}
   .page{max-width:980px;margin:24px auto;background:#fff;padding:36px 44px;box-shadow:0 2px 14px rgba(0,0,0,.12)}
-  header{display:flex;gap:18px;align-items:center;border-bottom:3px solid #0a6fd6;padding-bottom:14px;margin-bottom:18px}
+  header{display:flex;gap:18px;align-items:center;border-bottom:3px solid #000;padding-bottom:14px;margin-bottom:18px}
   header h1{font-size:22px;margin:0}header .sub{color:#5a6475}
-  h2{font-size:17px;border-bottom:1px solid #d5dae3;padding-bottom:4px;margin-top:30px;color:#0a3e78}
+  h2{font-size:17px;border-bottom:1px solid #d5dae3;padding-bottom:4px;margin-top:30px;color:#000}
   h3{font-size:14px;margin:18px 0 6px}
   table{border-collapse:collapse;width:100%;margin:6px 0 10px}th,td{border:1px solid #d5dae3;padding:4px 7px;text-align:left;vertical-align:top}
   th{background:#f2f5f9;font-weight:600}td.mono,.mono{font-family:Consolas,"DejaVu Sans Mono",monospace;font-size:11.5px;word-break:break-all}
@@ -60,7 +60,7 @@ export async function buildReport(ctx: AppCtx, progress: (label: string, v: numb
   footer{margin-top:30px;border-top:1px solid #d5dae3;padding-top:10px;font-size:11px;color:#6b7484}
   @media print{body{background:#fff}.page{box-shadow:none;margin:0;max-width:none;padding:0}h2{break-after:avoid}figure,table{break-inside:avoid}}`;
   let html = `<!doctype html><html><head><meta charset="utf-8"><title>Report — ${esc(p.name)}</title><style>${css}</style></head><body><div class="page">`;
-  html += `<header>${logoSvg(BRAND.letters, 56)}<div><h1>Forensic Image and Video Processing Report</h1><div class="sub">${esc(BRAND.fullName)} ${esc(BRAND.version)} — ${esc(p.name)}</div></div></header>`;
+  html += `<header>${logoSvg(56)}<div><h1>Forensic Image and Video Processing Report</h1><div class="sub">${esc(BRAND.fullName)} ${esc(BRAND.version)} — ${esc(p.name)}</div></div></header>`;
   const ci = p.caseInfo;
   html += `<h2>1. Case Information</h2><table class="kv">` +
     [["Case Number", ci.caseNumber], ["Exhibit / Item", ci.exhibit], ["Examiner", ci.examiner], ["Agency / Laboratory", ci.agency], ["Notes", ci.notes], ["Report Generated", `${now.toISOString()} (local: ${now.toLocaleString()}, ${Intl.DateTimeFormat().resolvedOptions().timeZone})`], ["Project Created", p.created], ["Project Modified", p.modified], ["Software", `${BRAND.fullName} ${BRAND.version} (build ${BRAND.build})`], ["Environment", navigator.userAgent]]

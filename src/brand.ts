@@ -1,11 +1,10 @@
-// Product branding (change here to rebrand the application).
+// Product branding (change here to rebrand the application). The mark itself is logoSvg() in ui/icons.ts.
 export const BRAND = {
-  name: "LUCID",
-  edition: "Professional",
-  fullName: "LUCID Forensic Workbench",
-  tagline: "Forensic Image and Video Enhancement",
-  letters: "LF",
+  name: "ClearUFO",
+  edition: "Forensics",
+  fullName: "ClearUFO Paranormal Video Forensics",
+  tagline: "Paranormal Video Forensics",
   version: "1.0.0",
   build: "26.10",
-  projectExt: ".lfp",
+  projectExt: ".lfp", // kept so projects saved by earlier builds still open
 };

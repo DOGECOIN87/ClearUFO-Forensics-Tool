@@ -1,4 +1,8 @@
-# LUCID Forensic Workbench
+<img src="docs/img/clearufo-logo.jpg" alt="ClearUFO logo" width="160" align="right">
+
+# ClearUFO Paranormal Video Forensics
+
+The ClearUFO build of the LUCID forensic workbench, styled after the ClearUFO channel badge.
 
 **Forensic image and video enhancement that runs entirely in the browser.** The user interface reproduces the
 panel layout of the reference desktop forensic suite (Filters, Tools, Viewer, Filter Settings, History, Player)

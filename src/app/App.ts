@@ -110,9 +110,9 @@ export class App implements AppCtx {
 
   updateTitle() {
     if (!this.titleEl) return;
-    const t = `${BRAND.name} ${BRAND.edition} - ${this.store.project.name}${this.store.dirty ? "*" : ""}`;
+    const t = `${BRAND.edition} - ${this.store.project.name}${this.store.dirty ? "*" : ""}`;
     this.titleEl.textContent = t;
-    document.title = t;
+    document.title = `${BRAND.name} ${t}`;
   }
 
   newProject() {
@@ -197,7 +197,7 @@ export class App implements AppCtx {
     this.titleEl = h("span", { class: "title-text" });
     const fs = h("button", { class: "title-btn", title: "Full screen (F11)", hidden: !this.canFullscreen() }, svg(I.fullscreen));
     fs.addEventListener("click", () => this.toggleFullscreen());
-    const titlebar = h("div", { class: "titlebar" }, h("span", { class: "title-logo", html: logoSvg(BRAND.letters, 20) }), this.titleEl, h("span", { class: "flex1" }), fs);
+    const titlebar = h("div", { class: "titlebar" }, h("span", { class: "title-logo", html: logoSvg(20) }), h("span", { class: "title-brand" }, BRAND.name), this.titleEl, h("span", { class: "flex1" }), fs);
     const menubar = h("div", { class: "menubar" });
     new MenuBar(menubar, this.menus());
     const a = this.actions;
@@ -325,7 +325,7 @@ export class App implements AppCtx {
         { label: "Fit Window", shortcut: "0", action: () => this.mainViewer?.fit() },
         { label: "Show Input of Selected Filter", shortcut: "Tab", checked: s.ui.showInput, action: () => s.setUi({ showInput: !s.ui.showInput }) },
         "-",
-        { label: "Theme", items: [{ label: "Midnight (2025)", checked: s.prefs.theme === "midnight", action: () => { s.savePrefs({ theme: "midnight" }); this.applyTheme(); } }, { label: "Classic Graphite", checked: s.prefs.theme === "classic", action: () => { s.savePrefs({ theme: "classic" }); this.applyTheme(); } }] },
+        { label: "Theme", items: [{ label: "Night (black)", checked: s.prefs.theme === "midnight", action: () => { s.savePrefs({ theme: "midnight" }); this.applyTheme(); } }, { label: "Daylight (white chrome)", checked: s.prefs.theme === "classic", action: () => { s.savePrefs({ theme: "classic" }); this.applyTheme(); } }] },
         { label: "Layout", items: ([["auto", "Automatic (by screen size)"], ["desktop", "Desktop"], ["compact", "Compact (phones and tablets)"]] as const).map(([k, l]) => ({ label: l, checked: s.prefs.layout === k, action: () => { s.savePrefs({ layout: k }); this.applyLayoutMode(); } })) },
         { label: "Reset Layout", action: () => this.resetLayout() },
         { label: "Full Screen", shortcut: "F11", disabled: !this.canFullscreen(), action: () => this.toggleFullscreen() },
@@ -716,7 +716,7 @@ export class App implements AppCtx {
 
   private about() {
     void alertDialog(`About ${BRAND.name}`, h("div", { class: "about" },
-      h("div", { class: "about-logo", html: logoSvg(BRAND.letters, 72) }),
+      h("div", { class: "about-logo", html: logoSvg(72) }),
       h("div", null,
         h("h2", null, BRAND.fullName),
         h("div", null, `${BRAND.tagline} — version ${BRAND.version} (build ${BRAND.build})`),

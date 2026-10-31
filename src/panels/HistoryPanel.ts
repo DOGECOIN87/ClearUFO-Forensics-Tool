@@ -17,7 +17,7 @@ export class HistoryPanel {
   constructor(private ctx: AppCtx) {
     this.tree = h("div", { class: "tree", tabindex: "0" });
     this.empty = h("div", { class: "panel-empty" });
-    this.el = h("div", { class: "panel history" }, this.tree, this.empty, h("div", { class: "history-logo", html: logoSvg(BRAND.letters, 54) + `<div class="history-logo-text">${BRAND.name}<br><span>FORENSIC</span></div>` }));
+    this.el = h("div", { class: "panel history" }, this.tree, this.empty, h("div", { class: "history-logo", html: logoSvg(54) + `<div class="history-logo-text">${BRAND.edition.toUpperCase()}</div>` }));
     ctx.store.on("project", () => this.render());
     ctx.store.on("ui", (k) => { if (k.has("chainId") || k.has("selected")) this.render(); });
     ctx.store.on("renderError", () => this.render());

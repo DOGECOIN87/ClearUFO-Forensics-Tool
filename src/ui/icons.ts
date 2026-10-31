@@ -81,7 +81,12 @@ export const I = {
 
 export type IconName = keyof typeof I;
 
-/** Brand mark: rounded square with stylized initials (configurable in brand.ts). */
-export function logoSvg(letters: string, size = 32): string {
-  return `<svg viewBox="0 0 64 64" width="${size}" height="${size}" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2fb3ff"/><stop offset="1" stop-color="#0a6fd6"/></linearGradient></defs><rect x="2" y="2" width="60" height="60" rx="13" fill="url(#lg)"/><text x="32" y="44" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="31" fill="#fff" font-style="italic" letter-spacing="-2">${letters}</text></svg>`;
+/** Brand mark: the ClearUFO badge (black and white saucer in a ringed circle, after the channel logo).
+ *  From 44 px up it carries the CLEARUFO banner and starfield; smaller sizes keep only the saucer so it stays legible. */
+export function logoSvg(size = 32): string {
+  const big = size >= 44;
+  const cy = big ? 0 : 5; // centre the saucer when there is no banner
+  const stars = big ? `<g fill="none" stroke="#000" stroke-width="0.7"><circle cx="16" cy="14" r="1.3"/><circle cx="44" cy="10" r="1"/><circle cx="51" cy="20" r="1.2"/><circle cx="12" cy="31" r="0.9"/><circle cx="52" cy="35" r="1"/></g><g fill="#000"><circle cx="22" cy="10" r="0.5"/><circle cx="38" cy="8" r="0.45"/><circle cx="10" cy="22" r="0.45"/><circle cx="55" cy="27" r="0.5"/><circle cx="47" cy="40" r="0.45"/></g>` : "";
+  const banner = big ? `<path d="M7 40.5h50l-1.6 11.5H8.6z" fill="#000"/><path d="M8.6 41.6h46.8" stroke="#fff" stroke-width="0.5"/><text x="32" y="50.4" text-anchor="middle" font-family="Impact, Haettenschweiler, 'Arial Narrow Bold', 'Arial Black', sans-serif" font-weight="900" font-size="10.4" textLength="42" lengthAdjust="spacingAndGlyphs" fill="#fff" stroke="#fff" stroke-width="0.2">CLEARUFO</text>` : "";
+  return `<svg viewBox="0 0 64 64" width="${size}" height="${size}" aria-hidden="true"><circle cx="32" cy="32" r="31.5" fill="#000"/><circle cx="32" cy="32" r="29" fill="#fff"/><circle cx="32" cy="32" r="26.6" fill="none" stroke="#000" stroke-width="${big ? 1.4 : 2.2}"/>${stars}<g transform="translate(0 ${cy})"><path d="M25 31h14l5 13H20z" fill="#c9c9c9"/><path d="M28 32l-2.5 11M32 32v11.5M36 32l2.5 11" stroke="#fff" stroke-width="1"/><path d="M21.5 25.5a10.5 9.5 0 0 1 21 0z" fill="#000"/><ellipse cx="27.6" cy="20.6" rx="2.4" ry="1.3" transform="rotate(-28 27.6 20.6)" fill="#fff"/><ellipse cx="32" cy="28" rx="23" ry="5.6" fill="#000"/><path d="M12.5 26.6q19.5-4.4 39 0" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/><ellipse cx="32" cy="32" rx="9.5" ry="2.1" fill="#3a3a3a"/></g>${banner}</svg>`;
 }
