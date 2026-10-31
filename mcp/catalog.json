@@ -849,7 +849,7 @@
      },
      "format": {
       "type": "string",
-      "description": "images/video only: tiff16 (default for images), tiff, tiff32f, png16, png, bmp, avi-raw (default for video), …"
+      "description": "images/video only: tiff16 (default for images), tiff, tiff32f, png16, png, bmp, mov-rgb48 (default for video: 16-bit, uncompressed audio), avi-raw, …"
      },
      "range": {
       "type": "string",

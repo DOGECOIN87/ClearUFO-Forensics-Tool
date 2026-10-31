@@ -593,7 +593,7 @@ export const TOOLS: ToolDef[] = [
     description: "Prepare an export and let the user save it: frames as images, a video, a snapshot, the processing report, or the project file. Uses lossless formats when 'lossless exports only' is on. The user clicks Save.",
     parameters: O({
       what: E(["images", "video", "snapshot", "report", "project"], "what to produce"),
-      format: S("images/video only: tiff16 (default for images), tiff, tiff32f, png16, png, bmp, avi-raw (default for video), …"),
+      format: S("images/video only: tiff16 (default for images), tiff, tiff32f, png16, png, bmp, mov-rgb48 (default for video: 16-bit, uncompressed audio), avi-raw, …"),
       range: E(["current", "all", "inout"], "images/video: which frames (default: current frame for images, all for video)"),
       start: I("first frame (overrides range)"), end: I("last frame (overrides range)"),
       name: S("file name without extension"), chain_id: S("default: active chain"),

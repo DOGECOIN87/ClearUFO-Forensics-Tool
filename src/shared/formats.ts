@@ -1,10 +1,11 @@
 // Export formats: one catalogue for the Write dialogs, the writer filters, the engine and the tests.
 import { AviWriter } from "./codecs/avi";
 import { bmpSize, pngSize, tiffSize } from "./codecs/image";
+import { MovWriter } from "./codecs/mov";
 import { ZipWriter } from "./codecs/zip";
 
 export type WriteFormat =
-  | "avi-raw" | "tiff16" | "tiff" | "tiff32f" | "png16" | "png" | "bmp"
+  | "mov-rgb48" | "avi-raw" | "tiff16" | "tiff" | "tiff32f" | "png16" | "png" | "bmp"
   | "avi-mjpeg" | "mp4" | "webm" | "jpeg" | "webp";
 
 export interface FormatInfo {
@@ -25,6 +26,7 @@ export interface FormatInfo {
 }
 
 export const FORMATS: Record<WriteFormat, FormatInfo> = {
+  "mov-rgb48": { label: "MOV — uncompressed RGB, 16-bit + PCM audio", short: "MOV 16-bit (uncompressed)", lossy: false, video: true, ext: "mov", mime: "video/quicktime", depth: "16-bit", bpp: 6 },
   "avi-raw": { label: "AVI — uncompressed RGB, 8-bit", short: "AVI (uncompressed)", lossy: false, video: true, ext: "avi", mime: "video/x-msvideo", depth: "8-bit", bpp: 3 },
   tiff16: { label: "TIFF — uncompressed, 16-bit", short: "TIFF 16-bit (uncompressed)", lossy: false, video: false, ext: "tif", mime: "image/tiff", depth: "16-bit", bpp: 6 },
   tiff: { label: "TIFF — uncompressed, 8-bit", short: "TIFF 8-bit (uncompressed)", lossy: false, video: false, ext: "tif", mime: "image/tiff", depth: "8-bit", bpp: 3 },
@@ -44,7 +46,7 @@ export const isWriteFormat = (f: unknown): f is WriteFormat => typeof f === "str
 export const isLossy = (f: string) => (isWriteFormat(f) ? FORMATS[f].lossy : true);
 
 /** Formats offered for video export, lossless first. Image formats write a numbered sequence (ZIP). */
-export const VIDEO_EXPORT: WriteFormat[] = ["avi-raw", "tiff16", "tiff32f", "png16", "tiff", "png", "avi-mjpeg", "mp4", "webm"];
+export const VIDEO_EXPORT: WriteFormat[] = ["mov-rgb48", "avi-raw", "tiff16", "tiff32f", "png16", "tiff", "png", "avi-mjpeg", "mp4", "webm"];
 export const IMAGE_EXPORT: WriteFormat[] = ["tiff16", "tiff", "tiff32f", "png16", "png", "bmp", "jpeg", "webp"];
 
 /** Label for a format in a list; image formats in the video list are sequences (one ZIP archive, stored). */
@@ -74,6 +76,7 @@ export function estimateBytes(f: WriteFormat, w: number, h: number, start: numbe
   const one = f === "tiff16" ? tiffSize(w, h, 2) : f === "tiff" ? tiffSize(w, h, 1) : f === "tiff32f" ? tiffSize(w, h, 4)
     : f === "png16" ? pngSize(w, h, 2) : f === "png" ? pngSize(w, h, 1) : f === "bmp" ? bmpSize(w, h) : null;
   if (f === "avi-raw") return AviWriter.rawFileSize(w, h, count);
+  if (f === "mov-rgb48") return MovWriter.fileSize(w, h, count);
   if (one === null) return null;
   if (count === 1) return one;
   const base = sanitizeName(name), ext = FORMATS[f].ext;

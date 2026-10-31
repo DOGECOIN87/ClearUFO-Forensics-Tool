@@ -105,7 +105,7 @@ const num = (key: string, label: string, min: number, max: number, def: number, 
   ({ type: "number", key, label, min, max, default: def, decimals: 2, slider: true, ...o });
 const int = (key: string, label: string, min: number, max: number, def: number, o: Partial<NumberParam> = {}): NumberParam =>
   ({ type: "int", key, label, min, max, default: def, decimals: 0, step: 1, slider: true, ...o });
-const VIDEO_WRITER_FORMATS: WriteFormat[] = ["avi-raw", "tiff16", "tiff32f", "png16", "tiff", "png", "avi-mjpeg", "mp4", "webm"];
+const VIDEO_WRITER_FORMATS: WriteFormat[] = ["mov-rgb48", "avi-raw", "tiff16", "tiff32f", "png16", "tiff", "png", "avi-mjpeg", "mp4", "webm"];
 /** Image formats written by the Video Writer are numbered sequences in one ZIP archive. */
 const videoWriterLabel = (f: WriteFormat) => (FORMATS[f].video ? FORMATS[f].short : FORMATS[f].short.replace(" (uncompressed)", " sequence (uncompressed)"));
 const IMAGE_WRITER_FORMATS: WriteFormat[] = ["tiff16", "tiff", "tiff32f", "png16", "png", "bmp", "jpeg", "webp"];
@@ -252,9 +252,9 @@ export const FILTER_LIST: FilterDef[] = [
   {
     id: "video_writer", name: "Video Writer", category: "Write", kind: "writer",
     description: "Writes the processed video to file.",
-    hint: "Hint: AVI (uncompressed) stores every frame exactly, 8 bits per channel, with no compression; files of any length are written as OpenDML AVI. TIFF and PNG sequences keep 16 bits per channel or 32-bit float, numbered files in one ZIP archive without compression. Lossy formats (MP4, WebM, Motion JPEG) are hidden while Settings › Lossless exports only is on.",
+    hint: "Hint: MOV (uncompressed, 16-bit) is the highest quality video file: every frame at 16 bits per channel with no compression, and the source audio as uncompressed 32-bit float PCM (when the frames follow the source one to one). AVI (uncompressed) stores 8 bits per channel and plays in more programs. TIFF and PNG sequences keep 16 bits per channel or 32-bit float, numbered files in one ZIP archive without compression. Lossy formats are never written.",
     params: [
-      sel("format", "Format", VIDEO_WRITER_FORMATS.map((f) => [f, videoWriterLabel(f)] as [string, string]), "avi-raw"),
+      sel("format", "Format", VIDEO_WRITER_FORMATS.map((f) => [f, videoWriterLabel(f)] as [string, string]), "mov-rgb48"),
       num("quality", "Quality (lossy only)", 0.1, 1, 0.92, { decimals: 2, show: (p) => isLossy(p.format) }),
       num("fps", "Frame Rate (0 = input)", 0, 240, 0, { slider: false, decimals: 3 }),
       sel("range", "Frames", [["all", "All Frames"], ["inout", "Player In/Out Range"]], "all"),

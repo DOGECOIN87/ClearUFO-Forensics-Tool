@@ -683,7 +683,7 @@ export class Actions {
     if (!isWriteFormat(req.format)) { toast(`Unknown output format "${req.format}".`, "error"); return null; }
     const fi = FORMATS[req.format];
     if (this.s.prefs.losslessOnly && fi.lossy) {
-      void alertDialog("Lossy Format Disabled", `${fi.short} compresses the frames and discards detail. "Lossless exports only" is on (Edit › Settings): choose an uncompressed format such as ${FORMATS[fi.video ? "avi-raw" : "tiff16"].short}, or turn the setting off to allow lossy formats.`);
+      void alertDialog("Lossy Format Disabled", `${fi.short} compresses the frames and discards detail, and lossy formats are never written. Choose an uncompressed format such as ${FORMATS[fi.video ? "mov-rgb48" : "tiff16"].short}.`);
       return null;
     }
     const out = outputFile(req.format, req.name, req.end - req.start + 1);
@@ -763,7 +763,7 @@ export class Actions {
         const lines: (string | HTMLElement)[] = [];
         if (fi.lossy) lines.push(h("b", { class: "warn" }, "Lossy: the encoder discards detail to make the file smaller. Do not use it when every frame must be preserved exactly."));
         else lines.push(h("b", null, "No compression: "), `every frame is stored exactly as processed${info ? ` (${info.width}×${info.height}, ${fi.depth} per channel${fb ? `, ${fmtBytes(fb)} per frame` : ""})` : ""}.`);
-        if (est !== null) lines.push(h("br"), `${count > 1 && !fi.video ? `${count} files in a ZIP archive (stored, not compressed). ` : ""}Size: ${fmtBytes(est)}.`);
+        if (est !== null) lines.push(h("br"), `${count > 1 && !fi.video ? `${count} files in a ZIP archive (stored, not compressed). ` : ""}Size: ${fmtBytes(est)}${st.format === "mov-rgb48" ? " plus the audio, if any (uncompressed PCM, about 0.4 MB per second for stereo 48 kHz)" : ""}.`);
         lines.push(h("br"), this.targetNote(target, est, st.format));
         note.replaceChildren(...lines);
       };
@@ -1044,7 +1044,7 @@ export class Actions {
       checkBox("Auto-save the session in the browser (restore after reload)", pr.autoSave, (v) => { pr.autoSave = v; }).el,
       checkBox("Confirm before deleting chains", pr.confirmDelete, (v) => { pr.confirmDelete = v; }).el,
       h("div", { class: "form-sep" }, "Export"),
-      checkBox("Lossless exports only: hide and refuse formats with lossy compression (MP4, WebM, Motion JPEG, JPEG, WebP)", pr.losslessOnly, (v) => { pr.losslessOnly = v; }).el,
+      h("p", { class: "muted small" }, "Exports are always lossless: no format with lossy compression (MP4, WebM, Motion JPEG, JPEG, WebP) is offered or written. Video is best exported as MOV, 16 bits per channel with the source audio as uncompressed PCM."),
       checkBox("Verify lossless exports: read the written file back and compare every frame bit for bit", pr.verifyExports, (v) => { pr.verifyExports = v; }).el,
       this.hasSavePicker()
         ? checkBox("Choose where to save exports and write them straight to disk (no size limit)", pr.saveToDisk, (v) => { pr.saveToDisk = v; }).el

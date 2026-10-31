@@ -6,6 +6,7 @@ import { decodeMjpeg, FrameListSource, openAvi } from "./avi";
 import { convertDvr, type DvrOptions } from "./dvr";
 import { openImage, SequenceSource, sniffImage } from "./image";
 import { MediabunnySource } from "./mbsource";
+import { looksLikeMov, openRawMov } from "./movraw";
 import { applyHdr } from "./hdr";
 import { baseInfo, decodeKey, fmtBytes, SourceFrameCache, type DecodeOpts, type SourceProvider } from "./types";
 import { resolveYuv, yuvToFrame, yuvToFrameP, type Siting } from "./yuv";
@@ -56,6 +57,10 @@ export async function openSource(id: string, files: File[], kind: SourceKind | "
       kind: "video", fileSize: file.size, containerLabel: `AVI (${r.codec.toUpperCase()}) → MP4 (lossless remux)`, types: conv.types,
       extraMeta: [["Stream Handler", r.parse.fourcc], ["Compression", r.parse.compression], ...conv.scan.notes.map((n) => ["Conversion", n] as [string, string])],
     });
+  }
+  if (looksLikeMov(head)) {
+    // uncompressed QuickTime has no decoder in the browser: read the samples directly
+    try { const raw = await openRawMov(id, file); if (raw) return raw; } catch { /* not a raw movie: try the demuxer */ }
   }
   let mbError: unknown = null;
   try { return await MediabunnySource.open(id, file, file.name, { fileSize: file.size }); } catch (e) { mbError = e; }

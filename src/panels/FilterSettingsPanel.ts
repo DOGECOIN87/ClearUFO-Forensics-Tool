@@ -199,7 +199,7 @@ export class FilterSettingsPanel {
         const sel = selectBox(opts, cur, (nv) => { this.set(f, pd.key, nv); this.sync(true); });
         const row = h("div", { class: "prm prm-row" }, labelEl, sel);
         if (writerFormat && isLossy(cur)) {
-          return reg(h("div", { class: "prm" }, row, h("div", { class: "prm-info warn" }, "This format is lossy, and lossy formats are disabled (Settings › Lossless exports only). Choose an uncompressed format to write.")), (nv) => { if (sel.value !== nv) sel.value = nv; });
+          return reg(h("div", { class: "prm" }, row, h("div", { class: "prm-info warn" }, "This format is lossy, and lossy formats are never written. Choose an uncompressed format to write.")), (nv) => { if (sel.value !== nv) sel.value = nv; });
         }
         return reg(row, (nv) => { if (sel.value !== nv) sel.value = nv; });
       }

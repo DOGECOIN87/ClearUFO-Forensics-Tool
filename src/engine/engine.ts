@@ -18,7 +18,7 @@ import { linkFilters } from "./filters/link";
 import { presentationFilters } from "./filters/presentation";
 import { temporalFilters } from "./filters/temporal";
 import { MediaElementSource, openDvr, openSource } from "./sources";
-import type { SourceProvider } from "./sources/types";
+import type { AudioFeed, SourceProvider } from "./sources/types";
 import type { BuildCtx, FilterImpl, Stream } from "./stream";
 import { writeStream } from "./writers/writers";
 import { openStaged, probeStaging, removeStaged, type StagedFile } from "./staging";
@@ -425,11 +425,30 @@ export class Engine {
     const idx = this.indexFor(chain, req.filterId, false);
     const s = await this.streamAt(req.chainId, idx);
     try {
-      return await writeStream(s, req, (phase, v) => this.progress(req.taskId, `${phase} ${req.handle?.name ?? req.name}`, v), () => this.cancelled.has(req.taskId));
+      const audio = req.format === "mov-rgb48" ? await this.exportAudio(chain, s, req) : null;
+      return await writeStream(s, req, (phase, v) => this.progress(req.taskId, `${phase} ${req.handle?.name ?? req.name}`, v), () => this.cancelled.has(req.taskId), audio);
     } finally {
       this.progress(req.taskId, "", 1, true);
       this.cancelled.delete(req.taskId);
     }
+  }
+
+  /** The source audio for an export, when the exported frames are consecutive frames of the chain's video
+   *  source at its own frame rate (no frame selection, field doubling or retiming), so it stays in sync. */
+  private async exportAudio(chain: ChainDoc, s: Stream, req: WriteRequest): Promise<AudioFeed | null> {
+    const loader = chain.filters[0];
+    const src = loader?.type === "video_loader" && loader.enabled !== false ? this.sources.get(loader.params?.source) : undefined;
+    if (!src?.audioFeed || !src.info.hasAudio) return null;
+    const fps = req.fps && req.fps > 0 ? req.fps : s.info.fps;
+    if (!fps || Math.abs(fps - src.info.fps) > 1e-6 * src.info.fps) return null;
+    const n = s.info.frameCount, a = Math.max(0, Math.min(n - 1, req.start)), b = Math.max(a, Math.min(n - 1, req.end));
+    const m0 = s.meta(a);
+    if (m0.src === undefined) return null;
+    for (let i = a; i <= b; i++) {
+      const m = s.meta(i);
+      if (m.src !== m0.src + (i - a) || m.pts !== src.meta(m.src).pts) return null;
+    }
+    try { return await src.audioFeed(); } catch { return null; }
   }
 
   cancel(taskId: string) { this.cancelled.add(taskId); }

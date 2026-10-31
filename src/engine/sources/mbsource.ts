@@ -2,12 +2,12 @@
 // Frames are indexed in presentation order from the real packet timestamps, so frame
 // numbers are exact (no time-based approximation), and a decoding cursor makes
 // sequential access (playback, stepping) cheap.
-import { ALL_FORMATS, BlobSource, BufferSource, EncodedPacketSink, Input, VideoSampleSink, type InputVideoTrack, type VideoSample } from "mediabunny";
+import { ALL_FORMATS, AudioSampleSink, BlobSource, BufferSource, EncodedPacketSink, Input, VideoSampleSink, type AudioSample, type InputVideoTrack, type VideoSample } from "mediabunny";
 import { BRAND } from "../../brand";
 import type { FrameMeta, SourceInfo, SourceKind } from "../../shared/types";
 import { fromRGBA8, type Frame } from "../frame";
 import { FRAME_TYPE_CODE, FRAME_TYPE_FROM_CODE, frameTypeOf, makeFrameTypeContext, type H264Sps } from "./bitstream";
-import { baseInfo, decodeKey, emptyTable, fmtBytes, Mutex, SourceFrameCache, type DecodeOpts, type SourceProvider } from "./types";
+import { baseInfo, decodeKey, emptyTable, fmtBytes, Mutex, SourceFrameCache, type AudioFeed, type DecodeOpts, type SourceProvider } from "./types";
 import { applyHdr } from "./hdr";
 import { qualityNotes } from "./quality";
 import { autoMatrix, MATRIX_LABEL, resolveYuv, rgbxToFrame, RGB_FORMATS, SITING_FROM_LOC, SITING_LABEL, YUV_FORMATS, yuvToFrame, yuvToFrameP, type Siting, type StreamColor } from "./yuv";
@@ -237,6 +237,9 @@ export class MediabunnySource implements SourceProvider {
     return src;
   }
 
+  /** The primary audio track as decoded samples (32-bit float, exactly as the decoder outputs them). */
+  async audioFeed(): Promise<AudioFeed | null> { return audioFeedOf(this.input); }
+
   meta(i: number): FrameMeta {
     const t = this.table;
     return { type: FRAME_TYPE_FROM_CODE[t.types[i]] ?? "?", pts: t.pts[i], key: t.types[i] === 1, bytes: t.bytes[i], src: i };
@@ -385,4 +388,52 @@ export class MediabunnySource implements SourceProvider {
     this.cache.clear();
     try { this.input.dispose(); } catch { /* ignore */ }
   }
+}
+
+/** The primary audio track of a file as decoded samples (32-bit float, exactly as the decoder outputs them). */
+export async function audioFeedOf(input: Input): Promise<AudioFeed | null> {
+  const track = await input.getPrimaryAudioTrack();
+  if (!track || !(await track.canDecode())) return null;
+  // the decoder's own rate and channel count (HE-AAC decodes at twice the signalled rate)
+  const sink = new AudioSampleSink(track);
+  let rate = await track.getSampleRate(), channels = await track.getNumberOfChannels();
+  for await (const s of sink.samples()) { rate = s.sampleRate; channels = s.numberOfChannels; s.close(); break; }
+  return new PcmReader(sink, rate, channels);
+}
+
+/** Sequential reader of decoded audio by sample index (exports read consecutive ranges). */
+class PcmReader implements AudioFeed {
+  private it: AsyncGenerator<AudioSample, void, unknown> | null = null;
+  private q: { start: number; data: Float32Array }[] = [];
+  private decodedTo = -Infinity;
+  private done = false;
+  constructor(private sink: AudioSampleSink, public sampleRate: number, public channels: number) {}
+
+  async read(from: number, to: number): Promise<Float32Array> {
+    const ch = this.channels, out = new Float32Array(Math.max(0, to - from) * ch);
+    if (to <= from) return out;
+    if (!this.it) this.it = this.sink.samples(Math.max(0, from / this.sampleRate - 0.25));
+    while (!this.done && this.decodedTo < to) {
+      const r = await this.it.next();
+      if (r.done) { this.done = true; break; }
+      const s = r.value, n = s.numberOfFrames, c = Math.min(ch, s.numberOfChannels);
+      const data = new Float32Array(n * ch), plane = new Float32Array(n);
+      for (let k = 0; k < c; k++) {
+        s.copyTo(plane, { planeIndex: k, format: "f32-planar" });
+        for (let j = 0; j < n; j++) data[j * ch + k] = plane[j];
+      }
+      const start = Math.round(s.timestamp * this.sampleRate);
+      s.close();
+      this.q.push({ start, data });
+      this.decodedTo = Math.max(this.decodedTo, start + n);
+    }
+    for (const c of this.q) {
+      const len = c.data.length / ch, a = Math.max(from, c.start), b = Math.min(to, c.start + len);
+      if (b > a) out.set(c.data.subarray((a - c.start) * ch, (b - c.start) * ch), (a - from) * ch);
+    }
+    this.q = this.q.filter((c) => c.start + c.data.length / ch > to);
+    return out;
+  }
+
+  close() { void this.it?.return(undefined); this.it = null; this.q = []; }
 }

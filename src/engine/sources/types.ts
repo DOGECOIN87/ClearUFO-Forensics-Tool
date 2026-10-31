@@ -18,6 +18,15 @@ export interface DecodeOpts {
 /** Cache key of a decoded frame: every option that changes the pixels. */
 export const decodeKey = (o?: DecodeOpts) => `${o?.colorRange ?? "auto"}|${o?.matrix ?? "auto"}|${o?.chroma ?? DEFAULT_CHROMA}|${o?.siting ?? "auto"}|${o?.hdr ?? "none"}|${o?.hdr === "tonemap" ? o.hdrPeak ?? 1000 : ""}`;
 
+/** Source audio for an export: decoded samples, interleaved 32-bit float, addressed by sample index on the
+ *  source timeline (index = seconds × sampleRate). Missing samples (before the start, gaps) read as silence. */
+export interface AudioFeed {
+  sampleRate: number;
+  channels: number;
+  read(from: number, to: number): Promise<Float32Array>;
+  close(): void;
+}
+
 export interface SourceProvider {
   id: string;
   info: SourceInfo;
@@ -30,6 +39,8 @@ export interface SourceProvider {
   decodable?: boolean;
   /** Raw bytes of a converted container (Convert DVR), for download. */
   converted?: { name: string; buffer: ArrayBuffer };
+  /** The decoded audio track for exports, or null when there is none (or it cannot be decoded). */
+  audioFeed?(): Promise<AudioFeed | null>;
   dispose(): void;
 }
 

@@ -71,7 +71,7 @@ export function defaultCacheMB(): number {
   return coarse ? 256 : 768;
 }
 
-const DEFAULT_PREFS: Prefs = { theme: "midnight", cacheMB: 768, threads: 0, gpuPreview: true, livePreview: true, frameHash: true, playAllFrames: false, autoSave: true, defaultFps: 25, confirmDelete: true, layout: "auto", losslessOnly: true, verifyExports: true, saveToDisk: true, videoFormat: "avi-raw", imageFormat: "tiff16", viewerInterp: "sharp" };
+const DEFAULT_PREFS: Prefs = { theme: "midnight", cacheMB: 768, threads: 0, gpuPreview: true, livePreview: true, frameHash: true, playAllFrames: false, autoSave: true, defaultFps: 25, confirmDelete: true, layout: "auto", losslessOnly: true, verifyExports: true, saveToDisk: true, videoFormat: "mov-rgb48", imageFormat: "tiff16", viewerInterp: "sharp" };
 
 export function emptyProject(): ProjectDoc {
   const now = new Date().toISOString();
@@ -119,11 +119,15 @@ export class Store extends Emitter<Events> {
     // 768 was the fixed default of earlier versions (saved along with any other preference):
     // on devices with less memory it is replaced by the device default.
     if (saved.cacheMB === 768 && cacheMB < 768) delete saved.cacheMB;
-    this.prefs = { ...DEFAULT_PREFS, cacheMB, ...saved };
+    // The best export became 16-bit MOV with uncompressed audio: move the old default (8-bit AVI) over once.
+    if ((saved as { exportDefaults?: number }).exportDefaults !== 2 && (saved.videoFormat === undefined || saved.videoFormat === "avi-raw")) saved.videoFormat = "mov-rgb48";
+    (saved as { exportDefaults?: number }).exportDefaults = 2;
+    // Lossy compression is never allowed: exports, capture and reports always keep the exact pixels.
+    this.prefs = { ...DEFAULT_PREFS, cacheMB, ...saved, losslessOnly: true };
   }
 
   savePrefs(patch: Partial<Prefs>) {
-    this.prefs = { ...this.prefs, ...patch };
+    this.prefs = { ...this.prefs, ...patch, losslessOnly: true };
     try { localStorage.setItem("lucid.prefs", JSON.stringify(this.prefs)); } catch { /* storage unavailable (sandboxed context) */ }
     this.emit("prefs");
   }

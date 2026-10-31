@@ -51,7 +51,7 @@ export async function decodeMjpeg(bytes: Uint8Array): Promise<Frame> {
 }
 
 // ---------------------------------------------------------------- raw decoders
-type RawKind = "dib24" | "dib32" | "gray" | "yuy2" | "uyvy" | "i420" | "yv12" | "nv12";
+export type RawKind = "dib24" | "dib32" | "gray" | "yuy2" | "uyvy" | "i420" | "yv12" | "nv12";
 
 const isYuvKind = (k: RawKind) => k === "yuy2" || k === "uyvy" || k === "i420" || k === "yv12" || k === "nv12";
 
@@ -83,7 +83,7 @@ function decodeRawYuv(kind: RawKind, b: Uint8Array, w: number, h: number, opts: 
   return yuvToFrame(b, [{ offset: 0, stride: w }, { offset: uo, stride: cw }, { offset: vo, stride: cw }], "I420", w, h, p);
 }
 
-function decodeRaw(kind: RawKind, b: Uint8Array, w: number, h: number, bottomUp: boolean, opts?: DecodeOpts, hdyc = false): Frame {
+export function decodeRaw(kind: RawKind, b: Uint8Array, w: number, h: number, bottomUp: boolean, opts?: DecodeOpts, hdyc = false): Frame {
   // Only the earlier default (sample replication, automatic BT.601 limited) keeps the original fixed-point
   // path below, so projects made before the chroma options existed reproduce bit for bit.
   if (isYuvKind(kind) && (hdyc || (opts?.chroma ?? DEFAULT_CHROMA) !== "nearest" || (opts?.matrix ?? "auto") !== "auto" || (opts?.colorRange ?? "auto") !== "auto"))

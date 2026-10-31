@@ -111,7 +111,7 @@ async def main():
         await pg.wait_for_function("() => !!(window.lucid && window.lucid.store)", timeout=30000)
         await pg.evaluate(PAGE_HELPERS)
         prefs = await pg.evaluate("(()=>{ const p = window.lucid.store.prefs; return { losslessOnly: p.losslessOnly, verifyExports: p.verifyExports, saveToDisk: p.saveToDisk, videoFormat: p.videoFormat, imageFormat: p.imageFormat } })()")
-        check("defaults: lossless only, verification on, AVI uncompressed / TIFF 16-bit", prefs == {"losslessOnly": True, "verifyExports": True, "saveToDisk": True, "videoFormat": "avi-raw", "imageFormat": "tiff16"}, json.dumps(prefs))
+        check("defaults: lossless only, verification on, MOV 16-bit uncompressed / TIFF 16-bit", prefs == {"losslessOnly": True, "verifyExports": True, "saveToDisk": True, "videoFormat": "mov-rgb48", "imageFormat": "tiff16"}, json.dumps(prefs))
 
         # 1. identity: uncompressed source → uncompressed AVI reproduces every source frame exactly
         src = f"{MEDIA}/bgr24.avi"
@@ -204,12 +204,12 @@ async def main():
         else: print(f"INFO {BROWSER}: no writable file handles here (OPFS unavailable), direct-to-disk path not exercised")
 
         # 6. Write Video dialog: lossless formats only, size estimate, download verified
-        await pg.evaluate("window.lucid.store.savePrefs({ saveToDisk: false })")
+        await pg.evaluate("window.lucid.store.savePrefs({ saveToDisk: false, videoFormat: 'avi-raw' })")
         await pg.evaluate("void window.lucid.actions.writeVideo()")
         await pg.wait_for_selector(".dlg .export-note", timeout=10000)
         d = await pg.evaluate("""(()=>{ const dlg=[...document.querySelectorAll('.dlg')].pop(); const row=[...dlg.querySelectorAll('.form-row')].find(r=>r.textContent.startsWith('Format:')); const sel=row.querySelector('select');
           const q=[...dlg.querySelectorAll('.form-row')].find(r=>r.textContent.startsWith('Quality')); return { value: sel.value, options: [...sel.options].map(o=>o.textContent), qualityHidden: !q || q.hidden, note: dlg.querySelector('.export-note').innerText } })()""")
-        check("Write Video lists only uncompressed formats, AVI first", d["value"] == "avi-raw" and not any("lossy" in o.lower() for o in d["options"]) and len(d["options"]) == 6, "; ".join(d["options"]))
+        check("Write Video lists only uncompressed formats, MOV 16-bit first, the saved choice selected", d["value"] == "avi-raw" and d["options"][0].startswith("MOV") and not any("lossy" in o.lower() for o in d["options"]) and len(d["options"]) == 7, "; ".join(d["options"]))
         check("no Quality control and an exact size in the dialog", d["qualityHidden"] and "No compression" in d["note"] and "Size:" in d["note"], d["note"][:160])
         async with pg.expect_download(timeout=60000) as dl:
             await pg.evaluate("window.__clickBtn('Write')")
@@ -222,7 +222,7 @@ async def main():
         await pg.wait_for_selector(".dlg .export-note", timeout=10000)
         opts = await pg.evaluate("(()=>{ const dlg=[...document.querySelectorAll('.dlg')].pop(); return [...dlg.querySelector('select').options].map(o=>o.textContent) })()")
         await pg.evaluate("window.__clickBtn('Cancel')")
-        check("lossy formats appear (marked lossy) only when allowed in Settings", sum("(lossy)" in o for o in opts) == 3, "; ".join(opts))
+        check("lossy formats never appear, even if a script tries to allow them", sum("(lossy)" in o for o in opts) == 0, "; ".join(opts))
         await pg.evaluate("window.lucid.store.savePrefs({ losslessOnly: true })")
 
         # 6b. "Choose where to save": the dialog's save picker hands a file to the engine, which writes it directly

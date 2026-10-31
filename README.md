@@ -282,9 +282,14 @@ Exports carry **no compression of any kind** unless lossy formats are explicitly
   finished, the disk holds two copies; staged files are removed with *Settings › Export › Manage…* or automatically
   the next time LUCID starts (Web Locks keep other open LUCID tabs from removing files still in use). Private
   windows have little storage; there the file is assembled in memory with a warning when it may not fit.
-* **Lossy formats** (MP4/WebM through the browser encoders, AVI Motion JPEG, JPEG, WebP) are hidden and refused
-  while *Settings › Lossless exports only* is on (default); the Write Video dialog lists them, marked “lossy”,
-  only when the setting is off. Writer filters in older projects that use a lossy format show a warning.
+* **MOV, 16-bit, uncompressed** (default video export): every frame as QuickTime 48-bit RGB (`b48r`, 16 bits per
+  channel, no compression) with the source audio as uncompressed 32-bit float PCM (`lpcm`), exactly as the
+  decoder outputs it. Audio is carried when the exported frames follow the source one to one at its frame rate
+  (no frame selection, field doubling or retiming), so it stays in sync. Files of any size (64-bit offsets);
+  verified bit for bit like the other lossless formats. Uncompressed MOV files (`b48r`, `b64a`, `raw `, `2vuy`)
+  also load at full precision, so exports can be loaded again unchanged.
+* **No lossy output, ever**: MP4/WebM, AVI Motion JPEG, JPEG and WebP are never offered or written (the engine
+  refuses them, whatever asks). Writer filters in older projects that use a lossy format show a warning.
 
 ### Reporting and projects
 

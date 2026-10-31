@@ -1,4 +1,5 @@
-// Export. Lossless: uncompressed AVI (OpenDML, any length) and uncompressed image files or sequences
+// Export. Lossless: uncompressed 16-bit QuickTime with the source audio as uncompressed PCM (any length),
+// uncompressed AVI (OpenDML, any length) and uncompressed image files or sequences
 // (TIFF 8/16-bit or 32-bit float, PNG 8/16-bit, BMP; sequences in a stored ZIP). Lossy, only when
 // allowed in Settings: MP4/WebM (WebCodecs via Mediabunny), AVI Motion JPEG, JPEG and WebP.
 //
@@ -8,6 +9,7 @@
 // uses to load files) and every frame is compared with the processed frame by MD5.
 import { BufferTarget, canEncodeVideo, Mp4OutputFormat, Output, Quality, VideoSample, VideoSampleSource, WebMOutputFormat } from "mediabunny";
 import { AviWriter } from "../../shared/codecs/avi";
+import { MovWriter, parseMov, rgb48be } from "../../shared/codecs/mov";
 import { crc32, decodeBMP, decodePNG, decodeTIFF, dib24, dibStride, encodeBMP, encodePNG, encodeTIFF, rgbFromDib24, sampleBytesLE, type Samples } from "../../shared/codecs/image";
 import { BlobSink, FileSink, type ByteSink } from "../../shared/codecs/sink";
 import { readZipEntries, ZipWriter } from "../../shared/codecs/zip";
@@ -18,6 +20,7 @@ import { toRGBA8, type Frame } from "../frame";
 import { md5 } from "../hash";
 import { parseAvi } from "../sources/avi";
 import type { Stream } from "../stream";
+import type { AudioFeed } from "../sources/types";
 
 // ---------------------------------------------------------------- frame → samples
 /** 8-bit RGB, rounded exactly like the viewer and the frame hash (round half to even, clamp). */
@@ -93,10 +96,24 @@ function padEven(f: Frame): Frame {
 
 type Progress = (label: string, v: number) => void;
 
+
 // ---------------------------------------------------------------- verification
 async function verifyOutput(file: Blob, fmt: WriteFormat, zip: boolean, expected: string[], names: string[], w: number, h: number, progress: Progress, check: () => void): Promise<{ ok: boolean; message: string }> {
   const n = expected.length;
   const fail = (i: number, why: string) => ({ ok: false, message: `Frame ${i + 1} of ${n}: ${why}` });
+  if (fmt === "mov-rgb48") {
+    const m = await parseMov(file);
+    if (m.frames.length !== n) return { ok: false, message: `The file holds ${m.frames.length} frames instead of ${n}` };
+    if (m.codec !== "b48r" || m.width !== w || m.height !== h) return { ok: false, message: "The file header does not describe uncompressed 48-bit RGB" };
+    for (let i = 0; i < n; i++) {
+      check();
+      const fr = m.frames[i];
+      if (fr.size !== w * h * 6) return fail(i, `stored size ${fr.size} bytes, expected ${w * h * 6}`);
+      if (md5(new Uint8Array(await file.slice(fr.off, fr.off + fr.size).arrayBuffer())) !== expected[i]) return fail(i, "the pixels read back differ from the processed frame");
+      progress("Verifying", (i + 1) / n);
+    }
+    return { ok: true, message: `All ${n} frame${n === 1 ? "" : "s"} read back from the file are bit-identical to the processed frames (16 bits per channel)` };
+  }
   if (fmt === "avi-raw") {
     const a = await parseAvi(file);
     if (a.frames.length !== n) return { ok: false, message: `The file holds ${a.frames.length} frames instead of ${n}` };
@@ -132,9 +149,11 @@ async function verifyOutput(file: Blob, fmt: WriteFormat, zip: boolean, expected
 }
 
 // ---------------------------------------------------------------- write entry point
-export async function writeStream(stream: Stream, req: WriteRequest, progress: Progress, cancelled: () => boolean): Promise<WriteResult> {
+export async function writeStream(stream: Stream, req: WriteRequest, progress: Progress, cancelled: () => boolean, audio?: AudioFeed | null): Promise<WriteResult> {
   if (!isWriteFormat(req.format)) throw new Error(`Unknown output format "${req.format}"`);
   const fmt = req.format, fi = FORMATS[fmt];
+  // No lossy output, ever: every export keeps the processed pixels exactly.
+  if (fi.lossy) throw new Error(`${fi.short} compresses the frames and discards detail. Choose an uncompressed format such as ${FORMATS["mov-rgb48"].short}.`);
   const n = stream.info.frameCount;
   const a = Math.max(0, Math.min(n - 1, req.start)), b = Math.max(a, Math.min(n - 1, req.end));
   const count = b - a + 1;
@@ -164,6 +183,27 @@ export async function writeStream(stream: Stream, req: WriteRequest, progress: P
         progress("Writing", (i - a + 1) / count);
       }
       if (zip) await zip.finish();
+    } else if (fmt === "mov-rgb48") {
+      // ---- QuickTime: 16-bit RGB frames, the source audio as 32-bit float PCM after each frame
+      const first = await stream.getFrame(a);
+      w = first.w; h = first.h;
+      const mov = new MovWriter(sink, { width: w, height: h, fps, audio: audio ? { sampleRate: audio.sampleRate, channels: audio.channels } : null });
+      await mov.begin();
+      const pts0 = stream.meta(a).pts ?? 0;
+      const at = (k: number) => Math.round((pts0 + k / fps) * (audio?.sampleRate ?? 0));
+      for (let i = a; i <= b; i++) {
+        check();
+        const f = i === a ? first : await stream.getFrame(i);
+        if (f.w !== w || f.h !== h) throw new Error(`Frame ${i + 1} is ${f.w}×${f.h} but the video is ${w}×${h}. A video file has one frame size: add a Resize or Crop filter, or export an image sequence.`);
+        const px = rgb48be(rgb16(f));
+        if (verify) hashes.push(md5(px));
+        await mov.addVideo(px);
+        if (audio) await mov.addAudio(await audio.read(at(i - a), at(i - a + 1)));
+        progress("Writing", (i - a + 1) / count);
+      }
+      await mov.finish();
+      codec = "uncompressed RGB 48-bit (16 bits per channel)";
+      if (audio) { codec += `, audio uncompressed PCM 32-bit float ${audio.sampleRate} Hz × ${audio.channels}`; }
     } else if (fmt === "avi-raw" || fmt === "avi-mjpeg") {
       // ---- AVI: uncompressed DIB frames (or Motion JPEG), OpenDML for files above 1 GB
       const first = await stream.getFrame(a);
@@ -212,6 +252,8 @@ export async function writeStream(stream: Stream, req: WriteRequest, progress: P
   } catch (e) {
     await discard();
     throw e;
+  } finally {
+    audio?.close();
   }
   const bytes = sink.pos;
   let blob: Blob | null;
