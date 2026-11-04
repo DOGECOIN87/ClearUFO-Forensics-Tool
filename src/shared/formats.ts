@@ -68,12 +68,25 @@ export function outputFile(f: WriteFormat, name: string, count: number): { name:
   return { name: `${sanitizeName(name)}.${ext}`, ext, mime: zip ? "application/zip" : fi.mime, zip };
 }
 
-/** Exact size of an uncompressed export (bytes), or null when it depends on the content (lossy formats). */
-export function estimateBytes(f: WriteFormat, w: number, h: number, start: number, end: number, name = "output"): number | null {
+/**
+ * Exact size for lossless exports, or an expected size for compressed video.
+ * Compressed sizes depend on the rendered content, so the latter is a bitrate
+ * projection using the same maximum-quality rate model as the video writer.
+ */
+export function estimateBytes(f: WriteFormat, w: number, h: number, start: number, end: number, name = "output", fps = 25, quality = 1): number | null {
   const count = Math.max(1, end - start + 1);
   const one = f === "tiff16" ? tiffSize(w, h, 2) : f === "tiff" ? tiffSize(w, h, 1) : f === "tiff32f" ? tiffSize(w, h, 4)
     : f === "png16" ? pngSize(w, h, 2) : f === "png" ? pngSize(w, h, 1) : f === "bmp" ? bmpSize(w, h) : null;
   if (f === "avi-raw") return AviWriter.rawFileSize(w, h, count);
+  if (f === "avi-mjpeg") {
+    // Motion JPEG is frame-local; this conservative projection reflects a
+    // high-quality JPEG stream and includes a small AVI/container allowance.
+    return Math.ceil(w * h * count * (0.16 + 0.26 * Math.max(0, Math.min(1, quality))) + 64 * 1024);
+  }
+  if (f === "mp4" || f === "webm") {
+    const rate = w * h * Math.max(0.1, fps) * (0.05 + Math.max(0, Math.min(1, quality)) * 0.35);
+    return Math.ceil(rate * (count / Math.max(0.1, fps)) / 8 + 64 * 1024);
+  }
   if (one === null) return null;
   if (count === 1) return one;
   const base = sanitizeName(name), ext = FORMATS[f].ext;

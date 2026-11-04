@@ -117,7 +117,7 @@ export class App implements AppCtx {
 
   newProject() {
     this.player.pause();
-    for (const id of this.store.sources.keys()) void this.engine.call("closeSource", id);
+    for (const id of this.store.sources.keys()) { this.mtVideo.close(id); void this.engine.call("closeSource", id); }
     this.store.sources.clear();
     this.store.files.clear();
     this.store.fileHandle = null;

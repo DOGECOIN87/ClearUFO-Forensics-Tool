@@ -149,6 +149,7 @@ export async function writeStream(stream: Stream, req: WriteRequest, progress: P
   const discard = async () => { await sink.abort(); if (staged) await removeStaged([staged.entry]); };
   const hashes: string[] = [], names: string[] = [];
   let codec: string | undefined, w = 0, h = 0;
+  let encodedOutput: Output | null = null;
   try {
     if (!fi.video) {
       // ---- still images: one file, or a stored ZIP of numbered files
@@ -192,7 +193,8 @@ export async function writeStream(stream: Stream, req: WriteRequest, progress: P
       let c: (typeof candidates)[number] | null = null;
       for (const x of candidates) { if (await canEncodeVideo(x, { width: first.w, height: first.h })) { c = x; break; } }
       if (!c) throw new Error(`No ${fmt.toUpperCase()} encoder available for ${first.w}x${first.h} in this browser. Use AVI (uncompressed) instead.`);
-      const output = new Output({ format: fmt === "mp4" ? new Mp4OutputFormat({ fastStart: "in-memory" }) : new WebMOutputFormat(), target: new BufferTarget() });
+      encodedOutput = new Output({ format: fmt === "mp4" ? new Mp4OutputFormat({ fastStart: "in-memory" }) : new WebMOutputFormat(), target: new BufferTarget() });
+      const output = encodedOutput;
       const bitrate = Math.round(first.w * first.h * fps * (0.05 + req.quality * 0.35));
       const source = new VideoSampleSource({ codec: c, quality: new Quality({ bitrate }), keyFrameInterval: 1, sizeChangeBehavior: "fill" });
       output.addVideoTrack(source, { frameRate: fps });
@@ -201,8 +203,7 @@ export async function writeStream(stream: Stream, req: WriteRequest, progress: P
         check();
         const f = i === a ? first : padEven(await stream.getFrame(i));
         const sample = new VideoSample(toRGBA8(f), { format: "RGBA", codedWidth: f.w, codedHeight: f.h, timestamp: (i - a) / fps, duration: 1 / fps });
-        await source.add(sample);
-        sample.close();
+        try { await source.add(sample); } finally { sample.close(); }
         progress("Writing", (i - a + 1) / count);
       }
       await output.finalize();
@@ -210,6 +211,7 @@ export async function writeStream(stream: Stream, req: WriteRequest, progress: P
       codec = { avc: "H.264", hevc: "HEVC", av1: "AV1", vp9: "VP9", vp8: "VP8" }[c];
     }
   } catch (e) {
+    if (encodedOutput) { try { await encodedOutput.cancel(); } catch { /* encoder is already closed */ } }
     await discard();
     throw e;
   }

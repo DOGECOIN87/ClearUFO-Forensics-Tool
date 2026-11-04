@@ -255,7 +255,7 @@ export const FILTER_LIST: FilterDef[] = [
     hint: "Hint: AVI (uncompressed) stores every frame exactly, 8 bits per channel, with no compression; files of any length are written as OpenDML AVI. TIFF and PNG sequences keep 16 bits per channel or 32-bit float, numbered files in one ZIP archive without compression. Lossy formats (MP4, WebM, Motion JPEG) are hidden while Settings › Lossless exports only is on.",
     params: [
       sel("format", "Format", VIDEO_WRITER_FORMATS.map((f) => [f, videoWriterLabel(f)] as [string, string]), "avi-raw"),
-      num("quality", "Quality (lossy only)", 0.1, 1, 0.92, { decimals: 2, show: (p) => isLossy(p.format) }),
+      num("quality", "Quality (lossy only)", 0.1, 1, 1, { decimals: 2, show: (p) => isLossy(p.format) }),
       num("fps", "Frame Rate (0 = input)", 0, 240, 0, { slider: false, decimals: 3 }),
       sel("range", "Frames", [["all", "All Frames"], ["inout", "Player In/Out Range"]], "all"),
       text("name", "File Name", "output"),

@@ -60,7 +60,7 @@ export class Engine {
   private cache = new FrameCache(512 * 1024 * 1024);
   private tokens = new Map<string, number>();
   private cancelled = new Set<string>();
-  private lastProgress = 0;
+  private lastProgress = new Map<string, number>();
   private nodeTasks = new Set<string>();
 
   constructor(private emit: Emit, private callMain: CallMain) {}
@@ -69,7 +69,10 @@ export class Engine {
   async openSource(id: string, files: File[], kind: SourceKind | "auto", options: Record<string, any> = {}): Promise<SourceInfo> {
     const taskId = `open:${id}`;
     const src = await openSource(id, files, kind, options, (label, v) => this.progress(taskId, label, v));
+    const generation = (this.tokens.get(`source:${id}`) ?? 0) + 1;
+    this.tokens.set(`source:${id}`, generation);
     this.sources.get(id)?.dispose();
+    this.clearCache();
     this.sources.set(id, src);
     this.media.delete(id);
     this.progress(taskId, "", 1, true);
@@ -77,7 +80,7 @@ export class Engine {
       // background GOP analysis (frame types and sizes)
       setTimeout(() => {
         src.analyze!((v) => this.progress(`analyze:${id}`, "Analyzing frame types", v))
-          .then(() => { this.progress(`analyze:${id}`, "", 1, true); this.emit("source", src.info); })
+          .then(() => { if (this.tokens.get(`source:${id}`) !== generation || this.sources.get(id) !== src) return; this.progress(`analyze:${id}`, "", 1, true); this.emit("source", src.info); })
           .catch(() => undefined);
       }, 50);
     }
@@ -85,9 +88,11 @@ export class Engine {
   }
 
   closeSource(id: string) {
+    this.tokens.set(`source:${id}`, (this.tokens.get(`source:${id}`) ?? 0) + 1);
     this.sources.get(id)?.dispose();
     this.sources.delete(id);
     this.media.delete(id);
+    this.clearCache();
   }
 
   sourceInfo(id: string): SourceInfo | null { return this.sources.get(id)?.info ?? null; }
@@ -110,7 +115,10 @@ export class Engine {
 
   async scanDvr(id: string, file: File, options: Record<string, any>): Promise<{ info: SourceInfo; scan: DvrScanResult }> {
     const r = await openDvr(id, file, { codec: options.codec ?? "auto", fps: options.fps ?? 0, container: options.container ?? "auto" }, (l, v) => this.progress(`dvr:${id}`, l, v));
+    const generation = (this.tokens.get(`source:${id}`) ?? 0) + 1;
+    this.tokens.set(`source:${id}`, generation);
     this.sources.get(id)?.dispose();
+    this.clearCache();
     this.sources.set(id, r.provider);
     this.progress(`dvr:${id}`, "", 1, true);
     return { info: r.provider.info, scan: r.scan };
@@ -165,7 +173,7 @@ export class Engine {
           if (pd.type === "chain" && f.params[pd.key]) deps += "|" + this.lastKey(f.params[pd.key], visiting);
           if (pd.type === "chains") for (const id of f.params[pd.key] || []) if (id !== chainId) deps += "|" + this.lastKey(id, visiting);
         }
-        const src = f.params.source ? `|src:${f.params.source}:${this.sources.has(f.params.source) ? "1" : "0"}` : "";
+        const src = f.params.source ? `|src:${f.params.source}:${this.sources.has(f.params.source) ? "1" : "0"}:${this.tokens.get(`source:${f.params.source}`) ?? 0}` : "";
         key = hashStr(`${key}>${f.type}:${stable(f.params)}${deps}${src}`);
       }
       keys.push(key);
@@ -474,8 +482,10 @@ export class Engine {
 
   private progress(taskId: string, label: string, value: number, done = false) {
     const now = performance.now();
-    if (!done && value < 1 && now - this.lastProgress < 80) return;
-    this.lastProgress = now;
+    const last = this.lastProgress.get(taskId) ?? -Infinity;
+    if (!done && value < 1 && now - last < 80) return;
+    this.lastProgress.set(taskId, now);
+    if (done) this.lastProgress.delete(taskId);
     this.emit("progress", { taskId, label, value, done });
   }
 }

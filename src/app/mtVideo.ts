@@ -12,9 +12,23 @@ export interface MtFrame {
 export class MediaElementFrames {
   private files = new Map<string, File>();
   private open = new Map<string, Entry>();
+  private generations = new Map<string, number>();
   private queue: Promise<unknown> = Promise.resolve();
 
-  register(sourceId: string, file: File) { this.files.set(sourceId, file); }
+  register(sourceId: string, file: File) { this.close(sourceId); this.generations.set(sourceId, (this.generations.get(sourceId) ?? 0) + 1); this.files.set(sourceId, file); }
+  close(sourceId: string) {
+    this.generations.set(sourceId, (this.generations.get(sourceId) ?? 0) + 1);
+    const e = this.open.get(sourceId);
+    this.open.delete(sourceId);
+    this.files.delete(sourceId);
+    if (!e) return;
+    e.video.pause();
+    e.video.removeAttribute("src");
+    e.video.load();
+    URL.revokeObjectURL(e.url);
+    e.canvas.width = e.canvas.height = 0;
+  }
+  dispose() { for (const id of [...this.open.keys()]) this.close(id); this.files.clear(); }
 
   private entry(sourceId: string): Entry {
     let e = this.open.get(sourceId);
@@ -41,14 +55,36 @@ export class MediaElementFrames {
   }
 
   frame(sourceId: string, time: number): Promise<MtFrame> {
+    const generation = this.generations.get(sourceId) ?? 0;
     const run = async (): Promise<MtFrame> => {
+      const current = () => { if ((this.generations.get(sourceId) ?? 0) !== generation) throw new Error("The media source was replaced while decoding"); };
       const e = this.entry(sourceId);
       await e.ready;
+      current();
       const v = e.video;
       const t = Math.max(0, Math.min(v.duration - 1e-3, time));
       if (Math.abs(v.currentTime - t) > 1e-4) {
-        await new Promise<void>((resolve) => { v.addEventListener("seeked", () => resolve(), { once: true }); v.currentTime = t; });
+        await new Promise<void>((resolve, reject) => {
+          let timer = 0;
+          const onSeeked = () => finish();
+          const onError = () => finish(new Error("The browser could not seek to this video frame"));
+          const finish = (error?: Error) => {
+            window.clearTimeout(timer);
+            v.removeEventListener("seeked", onSeeked);
+            v.removeEventListener("error", onError);
+            v.removeEventListener("abort", onError);
+            v.removeEventListener("stalled", onError);
+            error ? reject(error) : resolve();
+          };
+          timer = window.setTimeout(() => finish(new Error("The browser timed out seeking this video frame")), 15000);
+          v.addEventListener("seeked", onSeeked, { once: true });
+          v.addEventListener("error", onError, { once: true });
+          v.addEventListener("abort", onError, { once: true });
+          v.addEventListener("stalled", onError, { once: true });
+          try { v.currentTime = t; } catch (e) { finish(e instanceof Error ? e : new Error(String(e))); }
+        });
       }
+      current();
       // Prefer the decoded planes (exact samples, converted by the engine with the loader settings) when the
       // browser exposes them; GPU-backed frames have no readable format and go through the canvas below.
       if (typeof VideoFrame !== "undefined") {

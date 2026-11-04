@@ -84,7 +84,13 @@ export class EngineClient extends Emitter<Events> {
       kw.postMessage({ connect: ch.port2 }, [ch.port2]);
       return { result: ch.port1, transfer: [ch.port1] };
     });
-    w.port.onerror = (e) => { console.error("Engine worker error", e); this.emit("crash", e.message || "Engine error"); };
+    w.port.onerror = (e) => { const message = e.message || "Engine error"; console.error("Engine worker error", e); this.failPending(new Error(message)); this.emit("crash", message); };
+  }
+
+  private failPending(error: Error) {
+    for (const { reject } of this.pending.values()) reject(error);
+    this.pending.clear();
+    this.queue.length = 0;
   }
 
   private attach(p: Port): Port { p.onmessage = (e) => void this.onMessage(e.data); return p; }

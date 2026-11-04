@@ -132,6 +132,7 @@ export class Actions {
   }
 
   registerSource(info: SourceInfo, files: File[], options: Record<string, any> = {}) {
+    this.ctx.mtVideo.close(info.id);
     this.s.sources.set(info.id, info);
     this.s.files.set(info.id, files);
     this.ctx.mtVideo.register(info.id, files[0]);
@@ -444,8 +445,8 @@ export class Actions {
         if (p.range === "current") start = end = this.s.frameOf();
         else if (p.range === "inout" && io) { start = io[0] ?? 0; end = io[1] ?? n - 1; }
         const info = await this.e.call<StreamInfo | null>("streamInfo", this.s.ui.chainId!, filterId).catch(() => null);
-        const est = info && isWriteFormat(p.format) ? estimateBytes(p.format, info.width, info.height, start, end, p.name || "output") : null;
-        await this.runWrite({ chainId: this.s.ui.chainId!, filterId, format: p.format, quality: p.quality ?? 0.92, start, end, fps: p.fps || 0, name: p.name || "output", taskId: uid("write") }, est);
+        const est = info && isWriteFormat(p.format) ? estimateBytes(p.format, info.width, info.height, start, end, p.name || "output", p.fps || info.fps || 25, p.quality ?? 1) : null;
+        await this.runWrite({ chainId: this.s.ui.chainId!, filterId, format: p.format, quality: p.quality ?? 1, start, end, fps: p.fps || 0, name: p.name || "output", taskId: uid("write") }, est);
         break;
       }
     }
@@ -675,14 +676,14 @@ export class Actions {
    */
   async writeWith(o: { chainId: string; filterId: string | null; format: WriteFormat; start: number; end: number; name: string; fps?: number; quality?: number }): Promise<WriteResult | null> {
     const info = await this.e.call<StreamInfo | null>("streamInfo", o.chainId, o.filterId).catch(() => null);
-    const est = info ? estimateBytes(o.format, info.width, info.height, o.start, o.end, o.name) : null;
-    return this.runWrite({ chainId: o.chainId, filterId: o.filterId, format: o.format, quality: o.quality ?? 0.92, start: o.start, end: o.end, fps: o.fps ?? 0, name: o.name, taskId: uid("write") }, est);
+    const est = info ? estimateBytes(o.format, info.width, info.height, o.start, o.end, o.name, o.fps || info.fps || 25, o.quality ?? 1) : null;
+    return this.runWrite({ chainId: o.chainId, filterId: o.filterId, format: o.format, quality: o.quality ?? 1, start: o.start, end: o.end, fps: o.fps ?? 0, name: o.name, taskId: uid("write") }, est);
   }
 
   private async runWrite(req: WriteRequest, estimate: number | null = null): Promise<WriteResult | null> {
     if (!isWriteFormat(req.format)) { toast(`Unknown output format "${req.format}".`, "error"); return null; }
     const fi = FORMATS[req.format];
-    if (this.s.prefs.losslessOnly && fi.lossy) {
+    if (this.s.prefs.losslessOnly && fi.lossy && !fi.video) {
       void alertDialog("Lossy Format Disabled", `${fi.short} compresses the frames and discards detail. "Lossless exports only" is on (Edit › Settings): choose an uncompressed format such as ${FORMATS[fi.video ? "avi-raw" : "tiff16"].short}, or turn the setting off to allow lossy formats.`);
       return null;
     }
@@ -735,10 +736,13 @@ export class Actions {
     const n = info?.frameCount ?? 1;
     const io = s.ui.inOut[chain.id];
     const lossless = s.prefs.losslessOnly;
-    const list = (kind === "video" ? VIDEO_EXPORT : IMAGE_EXPORT).filter((f) => !(lossless && FORMATS[f].lossy) && (f !== "webp" || canEncodeWebP()));
+    // Video export intentionally exposes the complete standard catalogue so
+    // the examiner can choose a delivery format from the same dialog. The
+    // lossless-only preference still applies to image exports.
+    const list = (kind === "video" ? VIDEO_EXPORT : IMAGE_EXPORT).filter((f) => !(kind === "images" && lossless && FORMATS[f].lossy) && (f !== "webp" || canEncodeWebP()));
     const pref = kind === "video" ? s.prefs.videoFormat : s.prefs.imageFormat;
     const target = await this.exportTarget();
-    const st = { format: (list.includes(pref) ? pref : list[0]) as WriteFormat, quality: 0.92, fps: 0, range: kind === "video" ? "all" : n > 1 ? "current" : "all", name: kind === "video" ? chain.name : `${chain.name}_frame`, verify: s.prefs.verifyExports };
+    const st = { format: (list.includes(pref) ? pref : list[0]) as WriteFormat, quality: 1, fps: 0, range: kind === "video" ? "all" : n > 1 ? "current" : "all", name: kind === "video" ? chain.name : `${chain.name}_frame`, verify: s.prefs.verifyExports };
     const rangeOf = (): [number, number] => {
       if (st.range === "current") { const f = s.frameOf(); return [f, f]; }
       if (st.range === "inout" && io) return [io[0] ?? 0, io[1] ?? n - 1];
@@ -749,7 +753,7 @@ export class Actions {
       const fmts = list.map((f) => [f, formatLabel(f, kind === "video")] as [string, string]);
       const ranges: [string, string][] = [["all", `All Frames (${n})`], ...(io ? [["inout", `In/Out Range (${io[0] ?? 0}–${io[1] ?? n - 1})`] as [string, string]] : []), ...(kind === "images" ? [["current", `Current Frame (${s.frameOf()})`] as [string, string]] : [])];
       const nameInp = h("input", { class: "inp", type: "text", value: st.name }) as HTMLInputElement;
-      const qRow = h("div", { class: "form-row" }, h("span", null, "Quality (lossy):"), spinBox({ value: st.quality, min: 0.1, max: 1, decimals: 2, step: 0.01, width: 90, onChange: (v) => { st.quality = v; } }).el);
+      const qRow = h("div", { class: "form-row" }, h("span", null, "Quality (compressed):"), spinBox({ value: st.quality, min: 0.1, max: 1, decimals: 2, step: 0.01, width: 90, onChange: (v) => { st.quality = v; update(); } }).el);
       const verifyCb = checkBox("Verify after writing: read the file back and compare every frame bit for bit", st.verify, (v) => { st.verify = v; });
       const note = h("div", { class: "export-note" });
       const update = () => {
@@ -758,12 +762,12 @@ export class Actions {
         verifyCb.el.hidden = fi.lossy;
         const [a, b] = rangeOf();
         const count = b - a + 1;
-        const est = info ? estimateBytes(st.format, info.width, info.height, a, b, nameInp.value || st.name) : null;
+        const est = info ? estimateBytes(st.format, info.width, info.height, a, b, nameInp.value || st.name, st.fps || info.fps || 25, st.quality) : null;
         const fb = info ? frameBytes(st.format, info.width, info.height) : null;
         const lines: (string | HTMLElement)[] = [];
-        if (fi.lossy) lines.push(h("b", { class: "warn" }, "Lossy: the encoder discards detail to make the file smaller. Do not use it when every frame must be preserved exactly."));
+        if (fi.lossy) lines.push(h("b", { class: "warn" }, `Compressed: quality ${(st.quality * 100).toFixed(0)}% (maximum). The encoder may discard detail; use an uncompressed format when every frame must be preserved exactly.`));
         else lines.push(h("b", null, "No compression: "), `every frame is stored exactly as processed${info ? ` (${info.width}×${info.height}, ${fi.depth} per channel${fb ? `, ${fmtBytes(fb)} per frame` : ""})` : ""}.`);
-        if (est !== null) lines.push(h("br"), `${count > 1 && !fi.video ? `${count} files in a ZIP archive (stored, not compressed). ` : ""}Size: ${fmtBytes(est)}.`);
+        if (est !== null) lines.push(h("br"), `${count > 1 && !fi.video ? `${count} files in a ZIP archive (stored, not compressed). ` : ""}${fi.lossy ? "Expected size (estimate)" : "Size"}: ${fmtBytes(est)}.`);
         lines.push(h("br"), this.targetNote(target, est, st.format));
         note.replaceChildren(...lines);
       };
@@ -776,14 +780,14 @@ export class Actions {
         h("div", { class: "form-row" }, h("span", null, "File Name:"), nameInp),
         verifyCb.el,
         note,
-        lossless ? null : h("p", { class: "muted small" }, "Lossy formats are listed because Settings › Lossless exports only is off."));
+        kind === "images" && lossless ? null : h("p", { class: "muted small" }, kind === "video" ? "Compressed video methods are available for delivery exports and are set to maximum quality by default; use an uncompressed method when exact frame preservation is required." : "Lossy image formats are listed because Settings › Lossless exports only is off."));
       update();
       dialog({ title: kind === "video" ? "Write Video" : "Write Images", body, width: 580, onClose: () => resolve(r), buttons: [{ label: "Cancel" }, { label: "Write", primary: true, action: () => { st.name = nameInp.value || st.name; r = true; } }] });
     });
     if (!ok) return;
     const [start, end] = rangeOf();
     s.savePrefs(kind === "video" ? { videoFormat: st.format, verifyExports: st.verify } : { imageFormat: st.format, verifyExports: st.verify });
-    const est = info ? estimateBytes(st.format, info.width, info.height, start, end, st.name) : null;
+    const est = info ? estimateBytes(st.format, info.width, info.height, start, end, st.name, st.fps || info.fps || 25, st.quality) : null;
     await this.runWrite({ chainId: chain.id, filterId, format: st.format, quality: st.quality, start, end, fps: st.fps, name: st.name, taskId: uid("write") }, est);
   }
 
@@ -1044,7 +1048,7 @@ export class Actions {
       checkBox("Auto-save the session in the browser (restore after reload)", pr.autoSave, (v) => { pr.autoSave = v; }).el,
       checkBox("Confirm before deleting chains", pr.confirmDelete, (v) => { pr.confirmDelete = v; }).el,
       h("div", { class: "form-sep" }, "Export"),
-      checkBox("Lossless exports only: hide and refuse formats with lossy compression (MP4, WebM, Motion JPEG, JPEG, WebP)", pr.losslessOnly, (v) => { pr.losslessOnly = v; }).el,
+      checkBox("Lossless still-image exports only: hide and refuse lossy image compression (JPEG, WebP); compressed video delivery formats remain available", pr.losslessOnly, (v) => { pr.losslessOnly = v; }).el,
       checkBox("Verify lossless exports: read the written file back and compare every frame bit for bit", pr.verifyExports, (v) => { pr.verifyExports = v; }).el,
       this.hasSavePicker()
         ? checkBox("Choose where to save exports and write them straight to disk (no size limit)", pr.saveToDisk, (v) => { pr.saveToDisk = v; }).el
