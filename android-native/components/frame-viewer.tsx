@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Image, StyleSheet, Text, View, type GestureResponderEvent } from "react-native";
 import type { Frame } from "@/lib/engine/frame";
 import { imageBounds, imagePixel, pinchPan, type Viewport } from "@/lib/viewer/coordinates";
+import { original16BitSample } from "@/lib/viewer/samples";
 import { C, mono } from "@/lib/ui/theme";
 import { Btn } from "@/components/clearufo";
 
@@ -12,7 +13,7 @@ function center(touches: readonly Touch[]) {
 function distance(t: readonly Touch[]) { return Math.hypot(t[0].locationX - t[1].locationX, t[0].locationY - t[1].locationY); }
 
 type Gesture = { count: number; x: number; y: number; distance: number; viewport: Viewport };
-export function FrameViewer({ uri, frame }: { uri: string; frame: Frame }) {
+export function FrameViewer({ uri, frame, original16 }: { uri: string; frame: Frame; original16: boolean }) {
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [transform, setTransform] = useState({ zoom: 1, panX: 0, panY: 0 });
   const [sample, setSample] = useState<{ x: number; y: number } | null>(null);
@@ -52,7 +53,8 @@ export function FrameViewer({ uri, frame }: { uri: string; frame: Frame }) {
     </View>
     <Text style={{ color: C.muted, fontSize: 11 }}>Drag to pan · pinch to zoom · touch to sample the last result</Text>
     <Text selectable style={[{ color: C.text, fontSize: 12 }, mono]}>{sample && rgb ? `(${sample.x}, ${sample.y})  R ${format(rgb[0])}  G ${format(rgb[1])}  B ${format(rgb[2])}\nBT.601 luma ${format(0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2])}` : "Touch the image for a sample"}</Text>
-    <Text style={{ color: C.muted, fontSize: 11 }}>Processed float samples, nominal 0–255; not original file values.</Text>
+    {rgb && original16 ? <Text selectable style={[{ color: C.text, fontSize: 12 }, mono]}>{`Unfiltered decoded 16-bit RGB: ${rgb.map(original16BitSample).join(' / ')}`}</Text> : null}
+    <Text style={{ color: C.muted, fontSize: 11 }}>{original16 ? '16-bit values are reconstructed from the unfiltered decoded image; grayscale is shown as RGB.' : 'Processed float samples, nominal 0–255; not original file values. Source-depth readout is available only for an unfiltered 16-bit still image.'}</Text>
     <Btn title={`Reset view (${transform.zoom.toFixed(1)}×)`} secondary onPress={() => setTransform({ zoom: 1, panX: 0, panY: 0 })} />
   </View>;
 }

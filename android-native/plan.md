@@ -163,6 +163,8 @@ name and its exact frame table instead of a wrong image.
 
 ## Viewer progress (partial milestone D)
 
-The workbench displays the last valid result’s 8-bit RGB and BT.601 luma histogram, with browser-matching bins and saturation counts. This does not measure original 16-bit samples. A touch viewer provides pinch zoom, pan and a readout of the processed float samples and luma. It does not report original source-depth samples. Rectangle, point, line, point-list and curve parameters can be edited as validated JSON coordinates. On-image geometry drawing/editing, a separate spectra panel and device validation remain open.
+The workbench displays the last valid result’s 8-bit RGB and BT.601 luma histogram, with browser-matching bins and saturation counts. This does not measure original 16-bit samples. A touch viewer provides pinch zoom, pan and a readout of the processed float samples and luma. For an unfiltered 16-bit still image only, decoded source RGB integers are reconstructed from the float frame; transformed results do not claim original source-depth values. Rectangle, point, line, point-list and curve parameters can be edited as validated JSON coordinates. On-image geometry drawing/editing, a separate spectra panel and device validation remain open.
 
 Prebuild inspection: the generated source AndroidManifest.xml contains removal directives for INTERNET and ACCESS_NETWORK_STATE. The final merged release manifest and APK remain unverified without the Android SDK.
+
+Export read-back now requires byte-for-byte equality with the encoded output. Actual SAF provider behavior still needs Android device validation.

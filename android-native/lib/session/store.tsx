@@ -64,6 +64,8 @@ export interface SessionState {
     previewUri: string | null;
     histogram: DisplayHistogram;
     frame: Frame;
+    /** True only for an unfiltered still image decoded from 16-bit integer evidence. */
+    original16: boolean;
     width: number;
     height: number;
     applied: string[];

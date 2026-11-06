@@ -3,6 +3,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { Platform } from "react-native";
 
 import { base64ToBytes, bytesToBase64 } from "../codecs/base64";
+import { verifySavedBytes } from "../codecs/verify";
 
 export interface PickedPngEvidence {
   name: string;
@@ -58,9 +59,7 @@ export async function saveFileWithReadBack(
     encoding: FileSystem.EncodingType.Base64,
   });
   const readBack = await readUriAsBytes(uri);
-  if (readBack.length !== bytes.length) {
-    throw new Error(`The saved file has ${readBack.length} bytes; expected ${bytes.length}.`);
-  }
+  verifySavedBytes(bytes, readBack);
   return { uri, bytes: readBack };
 }
 
@@ -111,8 +110,6 @@ export async function savePngWithReadBack(fileBaseName: string, bytes: Uint8Arra
     encoding: FileSystem.EncodingType.Base64,
   });
   const readBack = await readUriAsBytes(uri);
-  if (readBack.length !== bytes.length) {
-    throw new Error(`The saved file has ${readBack.length} bytes; expected ${bytes.length}.`);
-  }
+  verifySavedBytes(bytes, readBack);
   return { uri, bytes: readBack };
 }

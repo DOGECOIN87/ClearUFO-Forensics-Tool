@@ -113,7 +113,7 @@ describe('result invalidation', () => {
     const { initialState, reducer } = await import('@/lib/session/store');
     const result = {
       previewUri: 'cache://preview', histogram: { hist: new Uint32Array(1280), low: 0, high: 0 },
-      frame: { w: 1, h: 1, d: new Float32Array(4) }, width: 1, height: 1,
+      frame: { w: 1, h: 1, d: new Float32Array(4) }, original16: false, width: 1, height: 1,
       applied: [], ms: 0, outputMd5: 'hash', at: 'now',
     };
     const expected = initialState;

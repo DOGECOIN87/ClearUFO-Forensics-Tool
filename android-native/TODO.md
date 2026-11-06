@@ -27,7 +27,7 @@ Progress (2026-11-06): the screens of the app are in place and use the ported en
 the hashes and the provenance, the workbench with the chain (add, reorder, enable, edit, undo, redo),
 the run with progress and cancellation, the export into a chosen folder with a read-back, the cases in
 the project format of the browser workbench, the history, the report, the settings and the help. The
-Android bundle builds (`expo export --platform android`). Still open: the remaining viewer tools (source-depth pixel readout, measurement and annotation), the export of the report as a file, the import of a project
+Android bundle builds (`expo export --platform android`). Still open: the remaining viewer tools (source-depth readout for filtered images, measurement and annotation), the export of the report as a file, the import of a project
 file, the relinking of the evidence, and the video path.
 
 Progress (2026-11-06): the computational core of the browser workbench is now ported into the app
@@ -69,4 +69,6 @@ Progress (2026-11-06): the conformance harness is in place — `tests/conformanc
 fixtures and the decoders are covered by `tests/still.test.ts`. The golden vectors for the video
 formats and the release APK are still open.
 
-Progress (2026-11-06): the workbench shows a browser-conformant 8-bit display histogram of the last valid result. This is not a source-depth histogram. A touch viewer now offers pinch zoom, pan and processed-float pixel/luma readout. Geometry parameters can also be edited using validated JSON coordinates; on-image drawing and editing, source-depth readout, and a separate spectra panel remain open; the viewer milestone is not complete or device-tested.
+Progress (2026-11-06): the workbench shows a browser-conformant 8-bit display histogram of the last valid result. This is not a source-depth histogram. A touch viewer now offers pinch zoom, pan and processed-float pixel/luma readout. Geometry parameters can also be edited using validated JSON coordinates; an unfiltered 16-bit still image also displays reconstructed decoded RGB integer samples. On-image drawing and editing, source-depth readout for filtered results, and a separate spectra panel remain open; the viewer milestone is not complete or device-tested.
+
+Progress: saved image exports are now compared byte-for-byte against the bytes read back, rather than only comparing lengths. SAF behavior remains unverified on Android.

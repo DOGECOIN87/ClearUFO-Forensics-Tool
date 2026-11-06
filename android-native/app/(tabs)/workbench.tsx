@@ -70,6 +70,7 @@ export default function WorkbenchScreen() {
         previewUri: uri,
         histogram: displayHistogram(rendered.frame),
         frame: rendered.frame,
+        original16: !state.video && evidence.depth === 16 && !chain.filters.some(f => f.enabled) && rendered.frame.w === evidence.width && rendered.frame.h === evidence.height,
         width: rendered.frame.w,
         height: rendered.frame.h,
         applied: rendered.applied,
@@ -117,10 +118,10 @@ export default function WorkbenchScreen() {
       log({
         kind: "export",
         title: `Exported ${format}`,
-        detail: `${file.bytes.length.toLocaleString()} bytes written and read back`,
+        detail: `${file.bytes.length.toLocaleString()} bytes written and byte-for-byte verified`,
         outputHash: readBackHash,
       });
-      setNotice(`The ${format} file was written and read back (${written.length.toLocaleString()} bytes).`);
+      setNotice(`The ${format} file was written and byte-for-byte verified (${written.length.toLocaleString()} bytes).`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -168,7 +169,7 @@ export default function WorkbenchScreen() {
 
         <Card>
           <SectionTitle index="01" title="VIEWER" note={state.result ? `${state.result.ms} ms` : "not run"} />
-          {state.result?.previewUri ? <FrameViewer uri={state.result.previewUri} frame={state.result.frame} /> : (
+          {state.result?.previewUri ? <FrameViewer uri={state.result.previewUri} frame={state.result.frame} original16={state.result.original16} /> : (
             <View style={styles.viewer}><Text style={styles.viewerHintText}>Run the chain to see the result</Text></View>
           )}
           {state.result ? (
