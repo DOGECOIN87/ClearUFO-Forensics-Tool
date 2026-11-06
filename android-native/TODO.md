@@ -23,6 +23,18 @@ Progress (2026-11-05): the React Native source implements PNG file selection, on
 - [ ] Expand still-image filters and lossless input/output formats in tested groups while preserving older `.lfp` project semantics.
 - [ ] Complete remaining filter families, native measurement/annotation tools, case workflows, and requested format support toward the existing application's 85-filter/17-category scope.
 
+Progress (2026-11-06): the computational core of the browser workbench is now ported into the app
+runtime (catalog, kernels, filters, chain engine, still image and JPEG decoders, output sinks) and
+compared with the browser implementation: 83 filters and all kernels are bit exact, the catalog,
+the parameter defaults and the project migrations are identical (141 tests, strict TypeScript
+clean). The app screens do not use the ported engine yet, and no APK could be built in this
+environment (no Android SDK available, `dl.google.com` not reachable), so the criteria above stay
+open.
+
+## Video and temporal processing
+- [ ] Port the video pipeline: SAF streaming, demux, decode, frame order and timestamps.
+- [ ] Port the timeline, playback, audio and the temporal filters on top of the chain engine.
+
 ## Verified video and temporal processing
 - [ ] Add streaming Android file access, pinned software demux/decode, presentation timestamps/frame order, format/color metadata, and the custom AVI/DVR/bitstream paths.
 - [ ] Preserve YUV range/matrix/chroma/HDR conversion contracts. Label unsupported or non-reference decode paths instead of silently substituting them.
@@ -35,3 +47,10 @@ Progress (2026-11-05): the React Native source implements PNG file selection, on
 - [ ] Add golden conformance vectors per filter/format and distinguish exact verified output from display-only or device-dependent paths.
 - [ ] Build the release APK through the Dashboard from an accepted native project checkpoint and verify offline launch/core workflows on an Android device/emulator.
 - [ ] Confirm the APK has no `INTERNET` or `ACCESS_NETWORK_STATE` permission; document tested Android versions, supported formats, known gaps, and artifact hash. Do not represent an intermediate APK as full parity.
+
+Progress (2026-11-06): the conformance harness is in place — `tests/conformance/kernels.test.ts`
+(colour, convolution, geometry, FFT and JPEG kernels against the reference),
+`tests/conformance/filters.test.ts` (83 filters, sample by sample) and
+`tests/conformance/catalog.test.ts` (catalog, defaults, project migrations). The still image
+fixtures and the decoders are covered by `tests/still.test.ts`. The golden vectors for the video
+formats and the release APK are still open.

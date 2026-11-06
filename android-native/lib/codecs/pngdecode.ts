@@ -34,7 +34,7 @@ export function inflate(z: Uint8Array): Uint8Array {
   return unzlibSync(z);
 }
 
-export async function decodePngExact(b: Uint8Array): Promise<DecodedPng> {
+export function decodePngExactSync(b: Uint8Array): DecodedPng {
   if (!isPng(b)) throw new Error("Not a PNG file");
   const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
   let w = 0, h = 0, depth = 0, ct = -1, interlaced = false, animated = false;
@@ -141,4 +141,9 @@ export async function decodePngExact(b: Uint8Array): Promise<DecodedPng> {
     }
   }
   return { w, h, depth, colorType: ct, interlaced, animated, rgba: out };
+}
+
+/** Asynchronous wrapper (the API of the browser reference, kept for the callers that await it). */
+export async function decodePngExact(b: Uint8Array): Promise<DecodedPng> {
+  return decodePngExactSync(b);
 }

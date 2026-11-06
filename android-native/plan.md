@@ -37,6 +37,45 @@ Preserve the original web app and its reference tests. Use Android 10 / API 29 a
 5. **Full product parity.** Complete remaining filter families, measurement/annotation tools, report/case workflows, project compatibility, and requested format support. Reconsider camera/capture or AI/MCP only after the offline core is stable and they are separately scoped.
 6. **Release APK.** From an accepted checkpoint, use the Dashboard's Android APK build action. Verify offline launch/core workflow on a device or emulator; confirm the APK lacks Internet/network-state permissions; record tested Android versions, supported formats, known gaps, and artifact hash. An intermediate APK is not full parity.
 
+## Progress log
+
+### Milestone A — the browser engine ported into the native app (2026-11-06)
+
+The computational core of the browser workbench now runs inside the app runtime, with the browser
+implementation kept as the oracle:
+
+- `lib/shared/`: the filter catalog (85 filters, 17 categories), the parameter defaults and the
+  legacy values, the project schema and its migrations, the format catalogue and the file sniffer.
+  The catalog, the defaults and the migrations are compared with the reference in
+  `tests/conformance/catalog.test.ts`.
+- `lib/engine/kernels/`: colour, convolution, geometry, FFT and JPEG kernels copied from the
+  reference and compared sample by sample in `tests/conformance/kernels.test.ts`. The WebAssembly
+  worker pool of the browser is gone: the same kernels run on the React Native thread, the results
+  are identical, only the scheduling changed.
+- `lib/engine/kernels/raster.ts` and `lib/engine/kernels/font.ts`: the annotation and overlay
+  drawing of the browser (which uses `OffscreenCanvas` and the system fonts) is replaced by a
+  software rasterizer and a generated 8x13 bitmap font, so the drawing is identical on every device
+  and needs no platform canvas. This is a documented deviation: text and shapes are the same
+  geometry, the glyphs are not the system font.
+- `lib/engine/filters/` and `lib/engine/graph.ts`: the filter implementations and the chain engine
+  (bounded cache, progress, cancellation, per-filter error identity, linked chains).
+- `lib/codecs/`: a baseline JPEG decoder (Huffman, dequantisation, floating point IDCT, 4:4:4,
+  4:2:2, 4:2:0, 4:1:1, restart intervals; progressive and arithmetic files are refused with a clear
+  message), the still image dispatcher (PNG, JPEG, BMP, TIFF), the PNG decoder with synchronous
+  exact decoding, the AVI and ZIP containers and the output sinks.
+- `lib/engine/sources/`: the deterministic test patterns, the YUV and HDR sources and the still
+  image source with its evidence hashes and decoder provenance.
+
+Conformance: 100 conformance tests plus 41 application tests pass, the strict TypeScript check is
+clean. 83 filters are compared with the reference filter by filter and are bit exact; the
+annotation filters (text, shapes, measurement overlays) are excluded because they draw with the
+platform canvas in the browser and with the own rasterizer in the app.
+
+Still open in this milestone: the app screens do not use the ported engine yet, the video pipeline
+(SAF streaming, demux, decode) is not ported, and no APK could be built in this environment (no
+Android SDK, and `dl.google.com` is not reachable), so the APK build and the device check are still
+pending.
+
 ## Forensic correctness principles
 
 - Keep original evidence immutable; hash original bytes as read. Record source identity, decoder/build, pixel format, color conversion, parameters, and output hashes.

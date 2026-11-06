@@ -3,6 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "jsx": "react-native",
+    "lib": ["ESNext", "DOM"],
     "types": [
       "node",
       "nativewind/types",
