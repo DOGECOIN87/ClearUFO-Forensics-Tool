@@ -60,6 +60,7 @@ export class Workbench {
   private cache = new FrameCache();
   private streams = new Map<string, { gen: number; stream: Stream }>();
   private building = new Map<string, Promise<Stream>>();
+  private generationCounter = 0;
 
   constructor(private options: GraphOptions = {}) {}
 
@@ -71,13 +72,14 @@ export class Workbench {
 
   setChain(chain: ChainDoc) {
     this.chains.set(chain.id, chain);
-    this.generation.set(chain.id, (this.generation.get(chain.id) ?? 0) + 1);
+    // The generation is a counter that never repeats: a chain that is removed and added again (a new
+    // evidence) must not read the frames of the previous chain from the cache.
+    this.generation.set(chain.id, ++this.generationCounter);
     this.streams.delete(chain.id);
   }
   removeChain(id: string) {
     this.chains.delete(id);
     this.streams.delete(id);
-    this.generation.delete(id);
   }
   getChain(id: string) { return this.chains.get(id); }
   chainName(id: string) { return this.chains.get(id)?.name ?? "?"; }

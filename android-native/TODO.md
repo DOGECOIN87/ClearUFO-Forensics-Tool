@@ -23,6 +23,14 @@ Progress (2026-11-05): the React Native source implements PNG file selection, on
 - [ ] Expand still-image filters and lossless input/output formats in tested groups while preserving older `.lfp` project semantics.
 - [ ] Complete remaining filter families, native measurement/annotation tools, case workflows, and requested format support toward the existing application's 85-filter/17-category scope.
 
+Progress (2026-11-06): the screens of the app are in place and use the ported engine: evidence with
+the hashes and the provenance, the workbench with the chain (add, reorder, enable, edit, undo, redo),
+the run with progress and cancellation, the export into a chosen folder with a read-back, the cases in
+the project format of the browser workbench, the history, the report, the settings and the help. The
+Android bundle builds (`expo export --platform android`). Still open: the viewer tools (zoom, pixel
+readout, measurement and annotation), the export of the report as a file, the import of a project
+file, the relinking of the evidence, and the video path.
+
 Progress (2026-11-06): the computational core of the browser workbench is now ported into the app
 runtime (catalog, kernels, filters, chain engine, still image and JPEG decoders, output sinks) and
 compared with the browser implementation: 83 filters and all kernels are bit exact, the catalog,

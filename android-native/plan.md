@@ -76,8 +76,38 @@ Still open in this milestone: the app screens do not use the ported engine yet, 
 Android SDK, and `dl.google.com` is not reachable), so the APK build and the device check are still
 pending.
 
-## Forensic correctness principles
+### Milestone B — the native app shell around the ported engine (2026-11-06)
 
+The app now has the screens of the workbench and the ported engine runs inside them:
+
+- `app/(tabs)/index.tsx` (Evidence): opens an image with the system picker, hashes the original bytes
+  (MD5, SHA-1, SHA-256), decodes it on the device and shows the provenance.
+- `app/(tabs)/workbench.tsx` (Workbench): the chain with the filters of the catalog, the parameter
+  controls generated from the catalog (number, selection, switch, colour, text), the order of the
+  filters, the enable/disable switch, undo and redo, the run with real progress and cancellation and
+  the export into a folder the examiner chooses (PNG 16-bit, TIFF 16-bit, TIFF 32-bit float, PNG
+  8-bit, BMP) with a read-back of the written file.
+- `app/(tabs)/video.tsx` (Video): reports that the video path is not ported yet. The screen states the
+  gap instead of showing a simulation.
+- `app/(tabs)/cases.tsx` (Cases): the case files in the format of the browser workbench (schema 3),
+  stored on the device with AsyncStorage.
+- `app/(tabs)/history.tsx` (History): the steps of the session with the hash of every result and the
+  provenance of the open source.
+- `app/more.tsx`, `app/reports.tsx`, `app/settings.tsx`, `app/help.tsx`: the report with the
+  provenance, the state of the build (the blocked permissions, the application id) and the help with
+  the known gaps.
+- `lib/session/`: the state of the session (evidence, chain, undo, history) and the bridge to the
+  engine. `lib/project/caseStore.ts`: the local cases.
+
+The Android bundle of the app builds (`expo export --platform android`, Hermes bytecode, 4.6 MB),
+which proves that every screen and every import resolves. The release APK still needs the Android
+SDK, which is not available in this environment.
+
+A defect of the engine was found and fixed with the new tests: the generation number of a chain was
+reset when a chain was removed, so a new evidence could read the frames of the previous one from the
+cache. The generation is now a counter that never repeats.
+
+## Forensic correctness principles
 - Keep original evidence immutable; hash original bytes as read. Record source identity, decoder/build, pixel format, color conversion, parameters, and output hashes.
 - Use the current browser implementation and fixtures as the behavioral oracle. Preserve Float32 storage points, Double intermediates, round-to-even/clamping, chroma siting, alpha, edge/reflection rules, color matrix/range, HDR behavior, and project schema defaults.
 - Add golden conformance vectors per filter/format and distinguish verified output from display-only or device-dependent paths.
