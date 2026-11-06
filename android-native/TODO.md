@@ -43,6 +43,13 @@ open.
 - [ ] Port the video pipeline: SAF streaming, demux, decode, frame order and timestamps.
 - [ ] Port the timeline, playback, audio and the temporal filters on top of the chain engine.
 
+Progress (2026-11-06): the AVI and the ISO base media (MP4) demuxers run on the device and build
+the exact frame table (the number of frames, their type, their size, their offset and their
+timestamp); Motion JPEG and the uncompressed AVI files are decoded on the device with the colour
+options of the loader; the video screen shows the frame table, steps through the frames and
+processes a frame with the chain. Open: the decoding of H.264, HEVC, AV1 and VP9, the playback with
+a timeline and the audio, the DVR and the raw bitstream files and the WebM container.
+
 ## Verified video and temporal processing
 - [ ] Add streaming Android file access, pinned software demux/decode, presentation timestamps/frame order, format/color metadata, and the custom AVI/DVR/bitstream paths.
 - [ ] Preserve YUV range/matrix/chroma/HDR conversion contracts. Label unsupported or non-reference decode paths instead of silently substituting them.

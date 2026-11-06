@@ -43,18 +43,40 @@ export function registerEvidence(evidence: EvidenceState): SourceInfo {
   return source.info;
 }
 
+/** The source the chain starts from: the still image or the video that is open. */
+export interface ChainSource {
+  sourceId: string;
+  loaderType: "image_loader" | "video_loader";
+  /** Extra parameters of the loader (the colour options of the video loader). */
+  params?: Record<string, unknown>;
+}
+
+/** The source of the session: the video when one is open, otherwise the still image. */
+export function sessionSource(state: { evidence: unknown; video: unknown }): ChainSource {
+  const video = state.video as { id: string } | null;
+  if (video) {
+    return {
+      sourceId: video.id,
+      loaderType: "video_loader",
+      params: { colorRange: "auto", matrix: "auto", chroma: "bicubic", siting: "auto", hdr: "tonemap" },
+    };
+  }
+  return { sourceId: SOURCE_ID, loaderType: "image_loader" };
+}
+
 /**
- * The chain that is executed: the loader of the evidence followed by the filters of the examiner.
+ * The chain that is executed: the loader of the source followed by the filters of the examiner.
  * The loader is always the first step, so the order of the filters stays the order of the list.
  */
-export function buildChain(chain: ChainState): ChainDoc {
+export function buildChain(chain: ChainState, source?: ChainSource): ChainDoc {
   const filters: FilterInstance[] = [];
-  const loader = FILTERS.image_loader;
+  const loaderType = source?.loaderType ?? "image_loader";
+  const loader = FILTERS[loaderType];
   filters.push({
     id: "loader",
-    type: "image_loader",
+    type: loaderType,
     enabled: true,
-    params: { ...defaultParams(loader), source: SOURCE_ID },
+    params: { ...defaultParams(loader), source: source?.sourceId ?? SOURCE_ID, ...(source?.params ?? {}) },
   });
   for (const f of chain.filters) filters.push({ ...f, params: { ...f.params } });
   return { id: chain.id, name: chain.name, filters };
@@ -66,12 +88,12 @@ export interface RunOptions {
 }
 
 /** Runs the chain and returns the resulting frame with the filters that were applied. */
-export async function runChain(chain: ChainState, options: RunOptions = {}) {
+export async function runChain(chain: ChainState, options: RunOptions = {}, source?: ChainSource, frame = 0) {
   workbench.setOptions({ onProgress: options.onProgress, isCancelled: options.isCancelled });
-  const doc = buildChain(chain);
+  const doc = buildChain(chain, source);
   workbench.setChain(doc);
   const started = Date.now();
-  const rendered = await workbench.render(chain.id, 0);
+  const rendered = await workbench.render(chain.id, frame);
   return { ...rendered, ms: Date.now() - started };
 }
 

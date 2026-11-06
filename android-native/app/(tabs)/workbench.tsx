@@ -10,7 +10,7 @@ import { writePreviewPng } from "@/lib/project/evidenceIO";
 import { saveFileWithReadBack } from "@/lib/project/evidenceIO";
 import { FILTERS } from "@/lib/shared/filters";
 import { useSession } from "@/lib/session/store";
-import { encodeFrame, frameHash, runChain, type ExportFormat } from "@/lib/session/workbench";
+import { encodeFrame, frameHash, runChain, sessionSource, type ExportFormat } from "@/lib/session/workbench";
 import { C, S, mono } from "@/lib/ui/theme";
 
 const FORMATS: [ExportFormat, string][] = [
@@ -42,10 +42,14 @@ export default function WorkbenchScreen() {
     cancel.current = false;
     setProgress({ label: "Running the chain on device", value: 0.05 });
     try {
-      const rendered = await runChain(chain, {
-        onProgress: (label, value) => setProgress({ label, value: 0.05 + value * 0.85 }),
-        isCancelled: () => cancel.current,
-      });
+      const rendered = await runChain(
+        chain,
+        {
+          onProgress: (label, value) => setProgress({ label, value: 0.05 + value * 0.85 }),
+          isCancelled: () => cancel.current,
+        },
+        sessionSource(state),
+      );
       if (cancel.current) {
         setNotice("The job was cancelled. Nothing was written.");
         return;
@@ -77,7 +81,7 @@ export default function WorkbenchScreen() {
       setBusy(false);
       setProgress(null);
     }
-  }, [busy, chain, evidence, log, setError, setNotice, setResult]);
+  }, [busy, chain, evidence, log, setError, setNotice, setResult, state]);
 
   const exportResult = useCallback(async () => {
     if (!evidence || busy) return;
@@ -89,7 +93,7 @@ export default function WorkbenchScreen() {
     setError(null);
     setProgress({ label: "Encoding the result", value: 0.2 });
     try {
-      const rendered = await runChain(chain, { onProgress: (label, value) => setProgress({ label, value }) });
+      const rendered = await runChain(chain, { onProgress: (label, value) => setProgress({ label, value }) }, sessionSource(state));
       const file = encodeFrame(rendered.frame, format);
       setProgress({ label: "Choose a destination folder", value: 0.8 });
       const base = `${evidence.name.replace(/\.[^.]+$/, "")}_clearufo-${format}.${file.name.split(".").pop()}`;
@@ -114,7 +118,7 @@ export default function WorkbenchScreen() {
       setBusy(false);
       setProgress(null);
     }
-  }, [busy, chain, evidence, log, setError, setNotice, state.result]);
+  }, [busy, chain, evidence, log, setError, setNotice, state]);
 
   const filters = useMemo(() => chain.filters, [chain.filters]);
 

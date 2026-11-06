@@ -7,6 +7,7 @@ import { createContext, useCallback, useContext, useMemo, useReducer, type React
 
 import type { FilterInstance, ParamValues } from "@/lib/shared/types";
 import { FILTERS, defaultParams } from "@/lib/shared/filters";
+import type { VideoSession } from "./video";
 
 export interface EvidenceState {
   /** Name of the file as it was picked. */
@@ -47,6 +48,8 @@ export interface ChainState {
 
 export interface SessionState {
   evidence: EvidenceState | null;
+  /** The video that is open (the frame table and the decoder of the file). */
+  video: VideoSession | null;
   chain: ChainState;
   /** The filter the examiner is editing (null = the whole chain). */
   selectedFilter: string | null;
@@ -74,6 +77,7 @@ const initialChain: ChainState = { id: CHAIN_ID, name: "Evidence", filters: [] }
 
 export const initialState: SessionState = {
   evidence: null,
+  video: null,
   chain: initialChain,
   selectedFilter: null,
   history: [],
@@ -87,6 +91,7 @@ export const initialState: SessionState = {
 type Action =
   | { type: "evidence"; evidence: EvidenceState }
   | { type: "clearEvidence" }
+  | { type: "video"; video: VideoSession | null }
   | { type: "chain"; chain: ChainState; undo?: boolean }
   | { type: "select"; id: string | null }
   | { type: "history"; entry: HistoryEntry }
@@ -112,6 +117,8 @@ function reducer(state: SessionState, action: Action): SessionState {
       };
     case "clearEvidence":
       return { ...state, evidence: null, chain: { ...initialChain, filters: [] }, result: null };
+    case "video":
+      return { ...state, video: action.video };
     case "chain":
       return {
         ...state,
@@ -163,6 +170,7 @@ export interface SessionApi {
   state: SessionState;
   dispatch: React.Dispatch<Action>;
   setEvidence: (e: EvidenceState) => void;
+  setVideo: (v: VideoSession | null) => void;
   setChain: (chain: ChainState, undo?: boolean) => void;
   addFilter: (type: string) => void;
   removeFilter: (id: string) => void;
@@ -194,6 +202,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       state,
       dispatch,
       setEvidence: (evidence) => dispatch({ type: "evidence", evidence }),
+      setVideo: (video) => dispatch({ type: "video", video }),
       setChain,
       addFilter: (type: string) => {
         const def = FILTERS[type];

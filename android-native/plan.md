@@ -107,6 +107,28 @@ A defect of the engine was found and fixed with the new tests: the generation nu
 reset when a chain was removed, so a new evidence could read the frames of the previous one from the
 cache. The generation is now a counter that never repeats.
 
+### Milestone C — the video path: demuxers on the device (2026-11-06)
+
+The video files are read with the demuxers of the app, not with a platform player:
+
+- `lib/engine/sources/avi.ts`: the AVI demuxer of the browser workbench (AVI 1.0 index, OpenDML
+  super index, the scan of the segments without an index, the frame table with the offsets and the
+  key frames). Motion JPEG is decoded with the JPEG decoder of the app, uncompressed RGB and YUV
+  through the YUV converter with the colour matrix, the range and the chroma siting of the loader.
+- `lib/engine/sources/mp4.ts`: the ISO base media demuxer (the sample table with the offsets, the
+  sizes and the presentation timestamps, the key frames, the colour information of the file
+  (`colr`), the mastering display and the content light level of the HDR files).
+- `lib/codecs/byteSource.ts` and `lib/project/safSource.ts`: the random access to the bytes of a
+  file of the device. Only the ranges that are asked for are read, so a large video is never loaded
+  as a whole.
+- `app/(tabs)/video.tsx`: the video screen: the frame table of the file (the number of frames, the
+  frame rate, the duration, the type of the frames, the size and the timestamp of the selected
+  frame), the step through the frames and the processing of a frame with the chain of the workbench.
+
+What is not in this milestone: the decoding of the compressed video codecs (H.264, HEVC, AV1, VP9)
+and the playback with a timeline and the audio. A file with such a codec is reported with its codec
+name and its exact frame table instead of a wrong image.
+
 ## Forensic correctness principles
 - Keep original evidence immutable; hash original bytes as read. Record source identity, decoder/build, pixel format, color conversion, parameters, and output hashes.
 - Use the current browser implementation and fixtures as the behavioral oracle. Preserve Float32 storage points, Double intermediates, round-to-even/clamping, chroma siting, alpha, edge/reflection rules, color matrix/range, HDR behavior, and project schema defaults.
