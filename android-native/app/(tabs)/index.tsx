@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useRouter } from "expo-router";
 import {
   ActivityIndicator,
   Image,
@@ -11,7 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { pickPngEvidence, savePngWithReadBack, writePreviewPng, type PickedPngEvidence } from "@/lib/project/evidenceIO";
-import { runNegativeExport, verifyPngExport, type NegativeExport, type PipelineProgress } from "@/lib/engine/imagePipeline";
+import { runImageOperationExport, verifyPngExport, type ImageOperation, type NegativeExport, type PipelineProgress } from "@/lib/engine/imagePipeline";
 
 const C = {
   background: "#080808",
@@ -73,6 +74,7 @@ function ActionButton({
 }
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [evidence, setEvidence] = useState<PickedPngEvidence | null>(null);
   const [result, setResult] = useState<NegativeExport | null>(null);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
@@ -81,6 +83,17 @@ export default function HomeScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [operation, setOperation] = useState<ImageOperation>("negative");
+
+  const operations: { id: ImageOperation; label: string; description: string }[] = [
+    { id: "negative", label: "Negative", description: "Invert RGB while preserving alpha" },
+    { id: "grayscale", label: "Grayscale", description: "BT.601 luminance conversion" },
+    { id: "brightness", label: "Brightness +32", description: "Deterministic additive lift" },
+    { id: "exposure", label: "Exposure ×1.5", description: "Deterministic gain" },
+    { id: "red", label: "Red channel", description: "Isolate red" },
+    { id: "green", label: "Green channel", description: "Isolate green" },
+    { id: "blue", label: "Blue channel", description: "Isolate blue" },
+  ];
 
   const chooseEvidence = async () => {
     setError(null);
@@ -105,11 +118,11 @@ export default function HomeScreen() {
     setNotice(null);
     setProgress({ label: "Starting on-device processing", fraction: 0 });
     try {
-      const output = await runNegativeExport(evidence.bytes, setProgress);
+      const output = await runImageOperationExport(evidence.bytes, operation, setProgress);
       const preview = await writePreviewPng(output.outputBytes);
       setPreviewUri(preview);
       setProgress({ label: "Choose a destination folder", fraction: 1 });
-      const baseName = `${evidence.name.replace(/\.png$/i, "")}_clearufo-negative-16bit`;
+      const baseName = `${evidence.name.replace(/\.png$/i, "")}_clearufo-${operation}-16bit`;
       const saved = await savePngWithReadBack(baseName, output.outputBytes);
       if (!saved) {
         setNotice("Export cancelled. The source remains unchanged; the verified preview is still available in this session.");
@@ -151,6 +164,7 @@ export default function HomeScreen() {
           <Text style={styles.heroTitle}>Evidence first.</Text>
           <Text style={styles.heroCopy}>Inspect local image evidence with reproducible, on-device processing.</Text>
         </View>
+        <ActionButton title="Open Video Timeline" onPress={() => router.push("/video")} secondary />
 
         <View style={styles.card}>
           <SectionTitle index="01" title="SOURCE EVIDENCE" />
@@ -171,7 +185,7 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.viewerCard}>
-          <SectionTitle index="02" title={isProcessed ? "NEGATIVE PREVIEW" : "EVIDENCE VIEWER"} />
+          <SectionTitle index="02" title={isProcessed ? `${operations.find((item) => item.id === operation)?.label.toUpperCase()} PREVIEW` : "EVIDENCE VIEWER"} />
           {imageUri ? (
             <View style={styles.imageFrame}>
               <Image source={{ uri: imageUri }} resizeMode="contain" style={styles.image} />
@@ -192,8 +206,26 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.card}>
-          <SectionTitle index="03" title="PROCESS & EXPORT" />
-          <Text style={styles.bodyCopy}>Run the reference Negative formula on the device, export a 16-bit RGB PNG, then decode the saved file and compare every sample.</Text>
+          <SectionTitle index="03" title="NATIVE FILTER WORKBENCH" />
+          <Text style={styles.bodyCopy}>These operations run on the device and export a new verified file. The source evidence is never overwritten.</Text>
+          <View style={styles.operationGrid}>
+            {operations.map((item) => (
+              <Pressable
+                key={item.id}
+                accessibilityRole="button"
+                onPress={() => { setOperation(item.id); setResult(null); setSavedUri(null); setNotice(null); }}
+                style={[styles.operationButton, operation === item.id ? styles.operationButtonSelected : null]}
+              >
+                <Text style={styles.operationLabel}>{item.label}</Text>
+                <Text style={styles.operationDescription}>{item.description}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <SectionTitle index="04" title="PROCESS & EXPORT" />
+          <Text style={styles.bodyCopy}>Run {operations.find((item) => item.id === operation)?.label} on the device, export a 16-bit RGB PNG, then decode the saved file and compare every sample.</Text>
           {busy && progress ? (
             <View style={styles.progressBox}>
               <ActivityIndicator color={C.text} />
@@ -203,7 +235,7 @@ export default function HomeScreen() {
               </View>
             </View>
           ) : null}
-          <ActionButton title={busy ? "Processing on device…" : "Apply Negative · Save 16-bit PNG"} onPress={processAndSave} disabled={!evidence || busy} />
+          <ActionButton title={busy ? "Processing on device…" : `Apply ${operations.find((item) => item.id === operation)?.label} · Save 16-bit PNG`} onPress={processAndSave} disabled={!evidence || busy} />
           {result ? (
             <View style={styles.resultBox}>
               <Text style={styles.resultLabel}>OUTPUT SAMPLE MD5</Text>
@@ -276,4 +308,9 @@ const styles = StyleSheet.create({
   error: { color: C.error, backgroundColor: "#241111", borderColor: "#5b2828", borderWidth: 1, borderRadius: 9, padding: 12, fontSize: 12, lineHeight: 18 },
   notice: { color: C.muted, fontSize: 11, lineHeight: 16, paddingHorizontal: 3 },
   footnote: { color: C.dim, fontSize: 10, lineHeight: 15, textAlign: "center", paddingHorizontal: 12, paddingTop: 4 },
+  operationGrid: { gap: 8 },
+  operationButton: { backgroundColor: C.panelRaised, borderColor: C.line, borderWidth: 1, borderRadius: 9, padding: 11, gap: 3 },
+  operationButtonSelected: { borderColor: C.text, backgroundColor: "#292929" },
+  operationLabel: { color: C.text, fontSize: 13, fontWeight: "800" },
+  operationDescription: { color: C.muted, fontSize: 11, lineHeight: 15 },
 });

@@ -31,6 +31,8 @@ export interface NegativeExport {
   verifiedInMemory: boolean;
 }
 
+export type ImageOperation = "negative" | "grayscale" | "brightness" | "exposure" | "red" | "green" | "blue";
+
 export interface ExportVerification {
   ok: boolean;
   samplesHash: string;
@@ -74,6 +76,33 @@ export function applyNegative(frame: ForensicFrame): ForensicFrame {
     output[i + 1] = 255 - input[i + 1];
     output[i + 2] = 255 - input[i + 2];
     output[i + 3] = input[i + 3];
+  }
+  return { w: frame.w, h: frame.h, d: output };
+}
+
+/** Deterministic frame-wise operations used by the native workbench slice. */
+export function applyImageOperation(frame: ForensicFrame, operation: ImageOperation): ForensicFrame {
+  if (operation === "negative") return applyNegative(frame);
+  const input = frame.d;
+  const output = new Float32Array(input.length);
+  for (let i = 0; i < input.length; i += 4) {
+    const r = input[i], g = input[i + 1], b = input[i + 2];
+    let nr = r, ng = g, nb = b;
+    if (operation === "grayscale") {
+      const y = 0.299 * r + 0.587 * g + 0.114 * b;
+      nr = y; ng = y; nb = y;
+    } else if (operation === "brightness") {
+      nr = r + 32; ng = g + 32; nb = b + 32;
+    } else if (operation === "exposure") {
+      nr = r * 1.5; ng = g * 1.5; nb = b * 1.5;
+    } else if (operation === "red") {
+      ng = 0; nb = 0;
+    } else if (operation === "green") {
+      nr = 0; nb = 0;
+    } else if (operation === "blue") {
+      nr = 0; ng = 0;
+    }
+    output[i] = nr; output[i + 1] = ng; output[i + 2] = nb; output[i + 3] = input[i + 3];
   }
   return { w: frame.w, h: frame.h, d: output };
 }
@@ -142,5 +171,30 @@ export async function runNegativeExport(
     samplesHash: verified.samplesHash,
     outputBytes,
     verifiedInMemory: verified.ok,
+  };
+}
+
+/** Generalized still-image export used by the native workbench. */
+export async function runImageOperationExport(
+  sourceBytes: Uint8Array,
+  operation: ImageOperation,
+  onProgress?: (progress: PipelineProgress) => void,
+): Promise<NegativeExport> {
+  if (!isPng(sourceBytes)) throw new Error("Select a PNG image. Additional source formats are being ported.");
+  const sourceHashes = await hashEvidenceBytes(sourceBytes, onProgress);
+  onProgress?.({ label: "Decoding PNG samples", fraction: 0.4 });
+  const decoded = await decodePngExact(sourceBytes);
+  if (decoded.animated) throw new Error("Animated PNG is not supported yet; the original evidence has not been changed.");
+  onProgress?.({ label: `Applying ${operation}`, fraction: 0.68 });
+  const processed = applyImageOperation({ w: decoded.w, h: decoded.h, d: decoded.rgba }, operation);
+  const samples = frameToRgb16(processed);
+  onProgress?.({ label: "Writing verified 16-bit PNG", fraction: 0.82 });
+  const outputBytes = encodePNG(processed.w, processed.h, samples);
+  const verified = verifyPngExport(outputBytes, samples, md5(sampleBytesLE(samples)));
+  if (!verified.ok) throw new Error(`In-memory export check failed: ${verified.message}`);
+  onProgress?.({ label: "Export verified in memory", fraction: 1 });
+  return {
+    width: decoded.w, height: decoded.h, sourceDepth: decoded.depth, sourceColorType: decoded.colorType,
+    sourceHashes, expectedSamples: samples, samplesHash: verified.samplesHash, outputBytes, verifiedInMemory: verified.ok,
   };
 }
