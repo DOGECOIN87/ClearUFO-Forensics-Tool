@@ -1,8 +1,11 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Btn, Body, Card, Chip, EmptyState, KeyValue, Note, Pill, Progress, Row, Screen, SectionTitle } from "@/components/clearufo";
+import { FrameViewer } from "@/components/frame-viewer";
+import { DisplayHistogramView } from "@/components/display-histogram";
+import { displayHistogram } from "@/lib/engine/histogram";
 import { FilterPicker } from "@/components/filter-picker";
 import { NavBar } from "@/components/nav-bar";
 import { ParamEditor } from "@/components/param-editor";
@@ -27,10 +30,11 @@ export default function WorkbenchScreen() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ label: string; value: number } | null>(null);
-  const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [format, setFormat] = useState<ExportFormat>("png16");
   const [expanded, setExpanded] = useState<string | null>(null);
   const cancel = useRef(false);
+  const latestState = useRef(state);
+  latestState.current = state;
 
   const evidence = state.evidence;
   const chain = state.chain;
@@ -57,17 +61,22 @@ export default function WorkbenchScreen() {
       setProgress({ label: "Writing the preview", value: 0.95 });
       const file = encodeFrame(rendered.frame, "png8");
       const uri = await writePreviewPng(file.bytes);
-      setPreviewUri(uri);
+      if (latestState.current.chain !== state.chain || latestState.current.evidence !== state.evidence || latestState.current.video !== state.video || cancel.current) {
+        setNotice("The source or chain changed during processing; the result was discarded.");
+        return;
+      }
       const hash = frameHash(rendered.frame);
       setResult({
         previewUri: uri,
+        histogram: displayHistogram(rendered.frame),
+        frame: rendered.frame,
         width: rendered.frame.w,
         height: rendered.frame.h,
         applied: rendered.applied,
         ms: rendered.ms,
         outputMd5: hash,
         at: new Date().toISOString(),
-      });
+      }, state);
       log({
         kind: "process",
         title: `Chain executed (${rendered.applied.length} filters)`,
@@ -159,14 +168,9 @@ export default function WorkbenchScreen() {
 
         <Card>
           <SectionTitle index="01" title="VIEWER" note={state.result ? `${state.result.ms} ms` : "not run"} />
-          <View style={styles.viewer}>
-            <Image source={{ uri: previewUri ?? state.result?.previewUri ?? "" }} resizeMode="contain" style={styles.image} />
-            {previewUri || state.result?.previewUri ? null : (
-              <View style={styles.viewerHint}>
-                <Text style={styles.viewerHintText}>Run the chain to see the result</Text>
-              </View>
-            )}
-          </View>
+          {state.result?.previewUri ? <FrameViewer uri={state.result.previewUri} frame={state.result.frame} /> : (
+            <View style={styles.viewer}><Text style={styles.viewerHintText}>Run the chain to see the result</Text></View>
+          )}
           {state.result ? (
             <Row style={styles.pillRow}>
               <Pill title={`${state.result.width} × ${state.result.height}`} />
@@ -174,6 +178,7 @@ export default function WorkbenchScreen() {
               <Pill title="PREVIEW ONLY" tone="warning" />
             </Row>
           ) : null}
+          {state.result ? <DisplayHistogramView value={state.result.histogram} /> : null}
           {progress ? <Progress label={progress.label} value={progress.value} /> : null}
           <Row>
             <Btn title="Run chain" onPress={run} busy={busy} style={styles.grow} />

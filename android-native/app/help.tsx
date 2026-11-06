@@ -56,7 +56,7 @@ export default function HelpScreen() {
         <Card>
           <SectionTitle index="03" title="KNOWN GAPS OF THIS BUILD" />
           <Body>· The video path (demux, decode, timeline, playback, audio) is not ported yet.</Body>
-          <Body>· The measurement and annotation tools are drawn on the viewer in the browser; here the geometry is shown but not drawn yet.</Body>
+          <Body>· Geometry parameters can be entered as JSON coordinates. Drawing or editing them on the viewer is not yet supported.</Body>
           <Body>· WebP and AVIF evidence is refused with a clear message instead of a wrong result.</Body>
           <Body>· The report is shown in the app; exporting it as a file is not implemented yet.</Body>
         </Card>

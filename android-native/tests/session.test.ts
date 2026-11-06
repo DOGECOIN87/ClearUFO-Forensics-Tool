@@ -107,3 +107,20 @@ describe("the chain of the app", () => {
     expect(tiff.bytes.length).toBeGreaterThan(0);
   });
 });
+
+describe('result invalidation', () => {
+  it('rejects results produced for a different chain or source and clears results on video changes', async () => {
+    const { initialState, reducer } = await import('@/lib/session/store');
+    const result = {
+      previewUri: 'cache://preview', histogram: { hist: new Uint32Array(1280), low: 0, high: 0 },
+      frame: { w: 1, h: 1, d: new Float32Array(4) }, width: 1, height: 1,
+      applied: [], ms: 0, outputMd5: 'hash', at: 'now',
+    };
+    const expected = initialState;
+    const changed = reducer(initialState, { type: 'chain', chain: { ...initialState.chain, name: 'changed' } });
+    expect(reducer(changed, { type: 'result', result, expected }).result).toBeNull();
+    const valid = reducer(initialState, { type: 'result', result, expected });
+    expect(valid.result).toBe(result);
+    expect(reducer(valid, { type: 'video', video: null }).result).toBeNull();
+  });
+});

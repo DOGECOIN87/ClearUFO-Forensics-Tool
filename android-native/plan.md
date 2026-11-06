@@ -160,3 +160,9 @@ name and its exact frame table instead of a wrong image.
 **Wordmark/logo:** reuse the ClearUFO monochrome mark from the supplied repository and adapt it to native launcher/splash assets; do not invent a replacement brand.
 
 **Signature brand color:** monochrome white (#f2f2f2) on graphite, consistent with the existing badge; reserve semantic colors for warnings and verification status.
+
+## Viewer progress (partial milestone D)
+
+The workbench displays the last valid result’s 8-bit RGB and BT.601 luma histogram, with browser-matching bins and saturation counts. This does not measure original 16-bit samples. A touch viewer provides pinch zoom, pan and a readout of the processed float samples and luma. It does not report original source-depth samples. Rectangle, point, line, point-list and curve parameters can be edited as validated JSON coordinates. On-image geometry drawing/editing, a separate spectra panel and device validation remain open.
+
+Prebuild inspection: the generated source AndroidManifest.xml contains removal directives for INTERNET and ACCESS_NETWORK_STATE. The final merged release manifest and APK remain unverified without the Android SDK.

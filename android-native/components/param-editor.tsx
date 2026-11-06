@@ -2,6 +2,7 @@
 // workbench, so a filter that has a new parameter in the reference also has it here.
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
+import { GeometryEditor } from "@/components/geometry-editor";
 import { Body, Chip, NumberField, Segmented, Toggle } from "@/components/clearufo";
 import type { ParamDef } from "@/lib/shared/filters";
 import type { ParamValues } from "@/lib/shared/types";
@@ -121,29 +122,10 @@ export function ParamEditor({
     case "points":
     case "line":
     case "curve":
-      return (
-        <View style={styles.field}>
-          <Text style={styles.label}>{def.label}</Text>
-          <Body>{describeGeometry(def, values[def.key])}</Body>
-        </View>
-      );
+      return <GeometryEditor def={def} value={values[def.key]} onChange={(value) => onChange(def.key, value)} />;
     default:
       return null;
   }
-}
-
-function describeGeometry(def: ParamDef, value: unknown): string {
-  if (value === null || value === undefined) return "Not set. This value is drawn and edited on the viewer.";
-  if (Array.isArray(value)) {
-    if (value.length === 0) return "Empty. This value is drawn and edited on the viewer.";
-    if (typeof value[0] === "number") return `${value.length} points. This value is drawn and edited on the viewer.`;
-    return `${value.length} points. This value is drawn and edited on the viewer.`;
-  }
-  if (typeof value === "object" && value && "x" in (value as Record<string, unknown>)) {
-    const p = value as { x: number; y: number };
-    return `${p.x.toFixed(1)}, ${p.y.toFixed(1)} px. This value is drawn and edited on the viewer.`;
-  }
-  return `${String(value)}. This value is drawn and edited on the viewer.`;
 }
 
 const styles = StyleSheet.create({

@@ -8,6 +8,8 @@ import { createContext, useCallback, useContext, useMemo, useReducer, type React
 import type { FilterInstance, ParamValues } from "@/lib/shared/types";
 import { FILTERS, defaultParams } from "@/lib/shared/filters";
 import type { VideoSession } from "./video";
+import type { Frame } from "../engine/frame";
+import type { DisplayHistogram } from "../engine/histogram";
 
 export interface EvidenceState {
   /** Name of the file as it was picked. */
@@ -60,6 +62,8 @@ export interface SessionState {
   /** Output of the last render: preview file and provenance. */
   result: {
     previewUri: string | null;
+    histogram: DisplayHistogram;
+    frame: Frame;
     width: number;
     height: number;
     applied: string[];
@@ -95,14 +99,14 @@ type Action =
   | { type: "chain"; chain: ChainState; undo?: boolean }
   | { type: "select"; id: string | null }
   | { type: "history"; entry: HistoryEntry }
-  | { type: "result"; result: SessionState["result"] }
+  | { type: "result"; result: SessionState["result"]; expected: Pick<SessionState, "chain" | "evidence" | "video"> }
   | { type: "error"; message: string | null }
   | { type: "notice"; message: string | null }
   | { type: "undo" }
   | { type: "redo" }
   | { type: "reset" };
 
-function reducer(state: SessionState, action: Action): SessionState {
+export function reducer(state: SessionState, action: Action): SessionState {
   switch (action.type) {
     case "evidence":
       return {
@@ -118,7 +122,7 @@ function reducer(state: SessionState, action: Action): SessionState {
     case "clearEvidence":
       return { ...state, evidence: null, chain: { ...initialChain, filters: [] }, result: null };
     case "video":
-      return { ...state, video: action.video };
+      return { ...state, video: action.video, result: null };
     case "chain":
       return {
         ...state,
@@ -132,6 +136,7 @@ function reducer(state: SessionState, action: Action): SessionState {
     case "history":
       return { ...state, history: [action.entry, ...state.history].slice(0, 200) };
     case "result":
+      if (state.chain !== action.expected.chain || state.evidence !== action.expected.evidence || state.video !== action.expected.video) return state;
       return { ...state, result: action.result };
     case "error":
       return { ...state, error: action.message };
@@ -183,7 +188,7 @@ export interface SessionApi {
   log: (entry: Omit<HistoryEntry, "time">) => void;
   setError: (message: string | null) => void;
   setNotice: (message: string | null) => void;
-  setResult: (result: SessionState["result"]) => void;
+  setResult: (result: SessionState["result"], expected: Pick<SessionState, "chain" | "evidence" | "video">) => void;
 }
 
 const SessionContext = createContext<SessionApi | null>(null);
@@ -246,7 +251,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       log: (entry) => dispatch({ type: "history", entry: { ...entry, time: new Date().toISOString() } }),
       setError: (message) => dispatch({ type: "error", message }),
       setNotice: (message) => dispatch({ type: "notice", message }),
-      setResult: (result) => dispatch({ type: "result", result }),
+      setResult: (result, expected) => dispatch({ type: "result", result, expected }),
     };
   }, [state, setChain]);
 
