@@ -299,16 +299,91 @@ fun smoothingWeight(method: String, k: Int, size: Int): Double { if (method != "
 
 private fun median3(a: Float, b: Float, c: Float) = if (a < b) (if (b < c) b else if (a < c) c else a) else (if (a < c) a else if (b < c) c else b)
 
+/** Devillard's 7-exchange median-of-5 network (as the web version). */
+private fun median5(a0: Float, b0: Float, c0: Float, d0: Float, e0: Float): Float {
+    var a = a0; var b = b0; var c = c0; var d = d0; var e = e0; var t: Float
+    if (a > b) { t = a; a = b; b = t }
+    if (d > e) { t = d; d = e; e = t }
+    if (a > d) d = a
+    if (b > e) b = e
+    if (b > c) { t = b; b = c; c = t }
+    if (c > d) c = d
+    return if (b > c) b else c
+}
+
+/** Median of buf[0 until k) (mean of the two middle values when k is even); may reorder buf. */
+fun medianInPlace(buf: DoubleArray, k: Int): Double {
+    if (k == 1) return buf[0]
+    val mid = k shr 1
+    if (k <= 16) {
+        for (i in 1 until k) { val v = buf[i]; var j = i - 1; while (j >= 0 && buf[j] > v) { buf[j + 1] = buf[j]; j-- }; buf[j + 1] = v }
+        return if (k and 1 == 1) buf[mid] else (buf[mid - 1] + buf[mid]) / 2
+    }
+    // Wirth's selection: afterwards buf[mid] is the mid-th smallest, everything before it is <= and after it >=
+    var l = 0; var m = k - 1
+    while (l < m) {
+        val x = buf[mid]; var i = l; var j = m
+        do {
+            while (buf[i] < x) i++
+            while (x < buf[j]) j--
+            if (i <= j) { val t = buf[i]; buf[i] = buf[j]; buf[j] = t; i++; j-- }
+        } while (i <= j)
+        if (j < mid) l = i
+        if (mid < i) m = j
+    }
+    if (k and 1 == 1) return buf[mid]
+    var lo = buf[0]
+    for (i in 1 until mid) if (buf[i] > lo) lo = buf[i]
+    return (lo + buf[mid]) / 2
+}
+
 /**
- * One output frame: co-located pixels of the frames in a moving window around frame i, in time order, double
- * precision sums; motion protection leaves out the pixels of a neighbor whose largest R/G/B difference to the current
- * frame (1-2-1 weighted 3x3 mean) exceeds the threshold. Rows run in parallel; each row's arithmetic is the same.
+ * Row y of the motion statistic before the vertical pass: largest absolute R/G/B difference of b to a per pixel,
+ * then the horizontal 1-2-1 sum (edges replicated, double precision, stored as float as the web version's
+ * Float32Array), into ring[o until o + w). dy holds one row of differences.
+ */
+private fun diffRow(a: FloatArray, b: FloatArray, w: Int, y: Int, ring: FloatArray, o: Int, dy: FloatArray) {
+    var q = y * w * 4
+    for (x in 0 until w) {
+        val dr = abs(b[q] - a[q]); val dg = abs(b[q + 1] - a[q + 1]); val db = abs(b[q + 2] - a[q + 2])
+        val m = if (dr > dg) dr else dg
+        dy[x] = if (m > db) m else db
+        q += 4
+    }
+    if (w == 1) { ring[o] = (dy[0].toDouble() + 2.0 * dy[0] + dy[0]).toFloat(); return }
+    ring[o] = (dy[0].toDouble() + 2.0 * dy[0] + dy[1]).toFloat()
+    for (x in 1 until w - 1) ring[o + x] = (dy[x - 1].toDouble() + 2.0 * dy[x] + dy[x + 1]).toFloat()
+    ring[o + w - 1] = (dy[w - 2].toDouble() + 2.0 * dy[w - 1] + dy[w - 1]).toFloat()
+}
+
+/** Ring offsets of rows y - 1, y and y + 1 (edges replicated). */
+private fun ringRows(y: Int, h: Int, w: Int) = Triple(((if (y > 0) y - 1 else 0) % 3) * w, (y % 3) * w, ((if (y < h - 1) y + 1 else y) % 3) * w)
+
+/** The rows of the ring a band starting at row y0 needs before its first row. */
+private fun primeRing(a: FloatArray, b: FloatArray, w: Int, y0: Int, ring: FloatArray, dy: FloatArray) {
+    if (y0 > 0) diffRow(a, b, w, y0 - 1, ring, ((y0 - 1) % 3) * w, dy)
+    diffRow(a, b, w, y0, ring, (y0 % 3) * w, dy)
+}
+
+/** Largest window (bytes of frames) kept in memory at once; bigger windows of Mean and Gaussian are streamed. The web
+ * version keeps up to 512 MB; on the phone it is a fifth of the app's heap. */
+@Volatile var smoothingHoldBytes: Long = min(512L shl 20, Runtime.getRuntime().maxMemory() / 5)
+
+/**
+ * One output frame (port of smoothFrame in temporal.ts): co-located pixels of the frames in a moving window around
+ * frame i, double precision sums in time order; motion protection leaves out the pixels of a neighbor whose largest
+ * R/G/B difference to the current frame (1-2-1 weighted 3x3 mean) exceeds the threshold. Windows too large to keep
+ * (Mean and Gaussian only) are streamed one input frame at a time, with the same result. Rows run in parallel; each
+ * row's arithmetic is the same as the web version's.
  */
 suspend fun smoothFrame(get: suspend (Int) -> Frame, i: Int, n: Int, size: Int, method: String, protect: Boolean, threshold: Double, showMask: Boolean, isStale: () -> Boolean): Frame {
     val cur = get(i)
     val (a, b) = smoothingWindow(i, n, size)
     if (a == b) return cur
-    val w = cur.w; val h = cur.h; val cd = cur.d
+    val w = cur.w; val h = cur.h; val cd = cur.d; val np = w * h
+    val lim = 16 * threshold
+    val keep = b - a + 1 <= 31 && (method == "median" || (b - a + 1).toLong() * np * 16 <= smoothingHoldBytes)
+    if (!keep) return smoothStreamed(get, cur, i, a, b, size, method, protect, lim, showMask, isStale)
     val frames = ArrayList<FloatArray>(); val wts = ArrayList<Double>()
     var total = 0.0; var ct = 0
     for (j in a..b) {
@@ -320,43 +395,108 @@ suspend fun smoothFrame(get: suspend (Int) -> Frame, i: Int, n: Int, size: Int, 
         frames.add(f.d); wts.add(wk); total += wk
     }
     val m = frames.size
-    val lim = 16 * threshold
-    val out = FloatArray(w * h * 4)
-    // largest absolute R/G/B difference of frame t to the current frame at pixel (x, y)
-    fun dmax(t: Int, x: Int, y: Int): Float {
-        val q = (y * w + x) * 4; val d = frames[t]
-        val dr = abs(d[q] - cd[q]); val dg = abs(d[q + 1] - cd[q + 1]); val db = abs(d[q + 2] - cd[q + 2])
-        return max(dr, max(dg, db))
-    }
-    fun still(t: Int, x: Int, y: Int): Boolean {
-        val xl = max(0, x - 1); val xr = min(w - 1, x + 1); val yu = max(0, y - 1); val yd = min(h - 1, y + 1)
-        fun row(yy: Int) = dmax(t, xl, yy) + 2 * dmax(t, x, yy) + dmax(t, xr, yy)
-        return row(yu) + 2 * row(y) + row(yd) <= lim
-    }
+    val W = DoubleArray(m) { wts[it] }
+    val median = method == "median"
+    val out = FloatArray(np * 4)
+    // One sweep over the rows of a band: the motion test of row y + 1 against every neighbor, then row y of the
+    // output. Bit t of rowBits[x]: frame t takes part at pixel x of the current row.
     Par.forRows(h) { y0, y1 ->
-        val sel = IntArray(m); val buf = FloatArray(m)
+        val dy = FloatArray(w); val rowBits = IntArray(w) { 1 shl ct }
+        val rings = if (protect) Array(m) { t -> if (t == ct) null else FloatArray(3 * w) } else null
+        if (rings != null) for (t in 0 until m) { val r = rings[t] ?: continue; primeRing(cd, frames[t], w, y0, r, dy) }
+        val sel = IntArray(m); val buf = DoubleArray(m)
         for (y in y0 until y1) {
             if ((y and 63) == 63 && isStale()) throw Cancelled()
-            for (x in 0 until w) {
-                val q = (y * w + x) * 4
-                var k = 0
-                for (t in 0 until m) if (t == ct || !protect || still(t, x, y)) sel[k++] = t
-                if (method != "median") {
-                    var s0 = 0.0; var s1 = 0.0; var s2 = 0.0; var ws = 0.0
-                    for (u in 0 until k) { val t = sel[u]; val d = frames[t]; val wk = wts[t]; s0 += wk * d[q]; s1 += wk * d[q + 1]; s2 += wk * d[q + 2]; ws += wk }
-                    out[q] = (s0 / ws).toFloat(); out[q + 1] = (s1 / ws).toFloat(); out[q + 2] = (s2 / ws).toFloat(); out[q + 3] = cd[q + 3]
-                    if (showMask && protect) maskPixel(out, q, ws / total)
-                } else {
-                    for (c in 0 until 3) {
-                        if (k == 3) { out[q + c] = median3(frames[sel[0]][q + c], frames[sel[1]][q + c], frames[sel[2]][q + c]); continue }
-                        for (u in 0 until k) buf[u] = frames[sel[u]][q + c]
-                        java.util.Arrays.sort(buf, 0, k)
-                        out[q + c] = if (k and 1 == 1) buf[k shr 1] else ((buf[k / 2 - 1].toDouble() + buf[k / 2]) / 2).toFloat()
-                    }
-                    out[q + 3] = cd[q + 3]
-                    if (showMask && protect) maskPixel(out, q, k.toDouble() / m)
+            if (rings != null) {
+                java.util.Arrays.fill(rowBits, 1 shl ct)
+                val (o0, o1, o2) = ringRows(y, h, w)
+                for (t in 0 until m) {
+                    val ring = rings[t] ?: continue
+                    if (y + 1 < h) diffRow(cd, frames[t], w, y + 1, ring, ((y + 1) % 3) * w, dy)
+                    val bit = 1 shl t
+                    for (x in 0 until w) if (ring[o0 + x].toDouble() + 2.0 * ring[o1 + x] + ring[o2 + x] <= lim) rowBits[x] = rowBits[x] or bit
                 }
             }
+            var q = y * w * 4
+            if (!median) {
+                for (x in 0 until w) {
+                    var s0 = 0.0; var s1 = 0.0; var s2 = 0.0; var ws = total
+                    if (rings != null) {
+                        ws = 0.0
+                        var bt = rowBits[x]; var t = 0
+                        while (bt != 0) {
+                            if (bt and 1 != 0) { val d = frames[t]; val wk = W[t]; s0 += wk * d[q]; s1 += wk * d[q + 1]; s2 += wk * d[q + 2]; ws += wk }
+                            t++; bt = bt ushr 1
+                        }
+                    } else {
+                        for (t in 0 until m) { val d = frames[t]; val wk = W[t]; s0 += wk * d[q]; s1 += wk * d[q + 1]; s2 += wk * d[q + 2] }
+                    }
+                    out[q] = (s0 / ws).toFloat(); out[q + 1] = (s1 / ws).toFloat(); out[q + 2] = (s2 / ws).toFloat(); out[q + 3] = cd[q + 3]
+                    if (showMask && rings != null) maskPixel(out, q, ws / total)
+                    q += 4
+                }
+                continue
+            }
+            for (x in 0 until w) {
+                var k = 0
+                if (rings != null) { var bt = rowBits[x]; var t = 0; while (bt != 0) { if (bt and 1 != 0) sel[k++] = t; t++; bt = bt ushr 1 } }
+                else while (k < m) { sel[k] = k; k++ }
+                when (k) {
+                    5 -> { val d0 = frames[sel[0]]; val d1 = frames[sel[1]]; val d2 = frames[sel[2]]; val d3 = frames[sel[3]]; val d4 = frames[sel[4]]
+                        for (c in q until q + 3) out[c] = median5(d0[c], d1[c], d2[c], d3[c], d4[c]) }
+                    3 -> { val d0 = frames[sel[0]]; val d1 = frames[sel[1]]; val d2 = frames[sel[2]]
+                        for (c in q until q + 3) out[c] = median3(d0[c], d1[c], d2[c]) }
+                    else -> for (c in 0 until 3) {
+                        for (t in 0 until k) buf[t] = frames[sel[t]][q + c].toDouble()
+                        out[q + c] = medianInPlace(buf, k).toFloat()
+                    }
+                }
+                out[q + 3] = cd[q + 3]
+                if (showMask && rings != null) maskPixel(out, q, k.toDouble() / m)
+                q += 4
+            }
+        }
+    }
+    return Frame(w, h, out)
+}
+
+/** Streamed Mean/Gaussian: one input frame at a time, double sums over the whole image (time order per pixel). */
+private suspend fun smoothStreamed(get: suspend (Int) -> Frame, cur: Frame, i: Int, a: Int, b: Int, size: Int, method: String, protect: Boolean, lim: Double, showMask: Boolean, isStale: () -> Boolean): Frame {
+    val w = cur.w; val h = cur.h; val cd = cur.d; val np = w * h
+    val acc = DoubleArray(np * 3); val kept = if (protect) DoubleArray(np) else null; val still = if (protect) BooleanArray(np) else null
+    var total = 0.0
+    for (j in a..b) {
+        if (isStale()) throw Cancelled()
+        val d = (if (j == i) cur else get(j)).let { if (it.w != w || it.h != h) null else it.d } ?: continue
+        val wk = smoothingWeight(method, j - i, size)
+        total += wk
+        val mk = if (still != null && j != i) still else null
+        Par.forRows(h) { y0, y1 ->
+            if (mk != null) {
+                val dy = FloatArray(w); val ring = FloatArray(3 * w)
+                primeRing(cd, d, w, y0, ring, dy)
+                for (y in y0 until y1) {
+                    if ((y and 63) == 63 && isStale()) throw Cancelled()
+                    if (y + 1 < h) diffRow(cd, d, w, y + 1, ring, ((y + 1) % 3) * w, dy)
+                    val (o0, o1, o2) = ringRows(y, h, w); val r = y * w
+                    for (x in 0 until w) mk[r + x] = ring[o0 + x].toDouble() + 2.0 * ring[o1 + x] + ring[o2 + x] <= lim
+                }
+            }
+            for (p in y0 * w until y1 * w) {
+                if (mk != null && !mk[p]) continue
+                val q = p * 4; val t = p * 3
+                acc[t] += wk * d[q]; acc[t + 1] += wk * d[q + 1]; acc[t + 2] += wk * d[q + 2]
+                if (kept != null) kept[p] += wk
+            }
+        }
+    }
+    val out = FloatArray(np * 4)
+    Par.forRows(h) { y0, y1 ->
+        for (p in y0 * w until y1 * w) {
+            val q = p * 4; val t = p * 3
+            val ws = kept?.get(p) ?: total
+            out[q] = (acc[t] / ws).toFloat(); out[q + 1] = (acc[t + 1] / ws).toFloat(); out[q + 2] = (acc[t + 2] / ws).toFloat(); out[q + 3] = cd[q + 3]
+            if (showMask && kept != null) maskPixel(out, q, kept[p] / total)
         }
     }
     return Frame(w, h, out)

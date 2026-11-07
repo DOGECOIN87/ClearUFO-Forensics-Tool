@@ -119,7 +119,7 @@ class VideoSource private constructor(private val ctx: Context, override val inf
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, Yuv.Planes>?): Boolean {
             var bytes = 0L
             for (v in values) bytes += (v.y.size + v.u.size + v.v.size) * 2L
-            return size > 3 && bytes > 64L * 1048576
+            return size > 2 && bytes > 24L * 1048576
         }
     }
     var decodable = true; private set

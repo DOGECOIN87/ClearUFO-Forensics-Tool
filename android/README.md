@@ -19,7 +19,7 @@ cd android
 ```
 
 Output: `app/build/outputs/apk/release/app-release-unsigned.apk` (≈3.5 MB, minified with R8). Prebuilt copies are in
-`dist/`. Install `ClearUFO-Forensics-1.0.2.apk` (signed, installable); `ClearUFO-Forensics-1.0.2-unsigned.apk` is
+`dist/`. Install `ClearUFO-Forensics-1.0.3.apk` (signed, installable); `ClearUFO-Forensics-1.0.3-unsigned.apk` is
 the same build without a signature, and Android refuses to install it ("invalid package") until it is signed.
 
 Every push that changes `android/` also builds the APK on GitHub Actions (workflow **Android APK**). The

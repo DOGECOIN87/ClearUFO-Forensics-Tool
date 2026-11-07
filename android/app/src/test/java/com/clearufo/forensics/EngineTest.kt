@@ -159,6 +159,25 @@ class CodecTest {
         assertEquals(54 + ((19 * 3 + 3) and 3.inv()) * 11, bmp.size)
     }
 
+    @Test fun streamedTemporalSmoothingMatchesTheInMemoryPath() = runBlocking {
+        // frames with noise and a moving square, so motion protection takes part
+        val w = 37; val h = 23; val n = 9
+        val frames = (0 until n).map { i -> val r = rng(77 + i); Frame.alloc(w, h).also { f ->
+            for (y in 0 until h) for (x in 0 until w) { val q = (y * w + x) * 4; val sq = x in 3 * i until 3 * i + 8 && y in 5 until 15
+                f.d[q] = (if (sq) 230.0 else 60 + r() * 20).toFloat(); f.d[q + 1] = (90 + r() * 30).toFloat(); f.d[q + 2] = (x * 5 + r() * 8).toFloat(); f.d[q + 3] = 255f } } }
+        val get: suspend (Int) -> Frame = { frames[it] }
+        val saved = com.clearufo.forensics.engine.filters.smoothingHoldBytes
+        try {
+            for (method in listOf("mean", "gaussian")) for (protect in listOf(false, true)) for (mask in listOf(false, true)) for (i in listOf(0, 4, 8)) {
+                com.clearufo.forensics.engine.filters.smoothingHoldBytes = Long.MAX_VALUE
+                val kept = com.clearufo.forensics.engine.filters.smoothFrame(get, i, n, 7, method, protect, 10.0, protect && mask) { false }
+                com.clearufo.forensics.engine.filters.smoothingHoldBytes = 0
+                val streamed = com.clearufo.forensics.engine.filters.smoothFrame(get, i, n, 7, method, protect, 10.0, protect && mask) { false }
+                assertArrayEquals("$method protect=$protect mask=$mask frame $i", kept.d, streamed.d, 0f)
+            }
+        } finally { com.clearufo.forensics.engine.filters.smoothingHoldBytes = saved }
+    }
+
     @Test fun projectJsonRoundTripAndLegacyPinning() {
         // a project saved by an older browser version: Video Loader without "chroma"/"hdr"
         val legacy = """{"app":"LUCID","schema":1,"name":"Case 7","chains":[{"id":"c1","name":"cam","filters":[

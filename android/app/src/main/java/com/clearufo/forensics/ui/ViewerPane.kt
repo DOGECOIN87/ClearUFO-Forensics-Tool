@@ -180,7 +180,10 @@ fun ViewerPane(wb: Workbench, modifier: Modifier = Modifier, compact: Boolean = 
             InspectorBox(wb, r, Modifier.align(Alignment.TopStart).padding(6.dp))
             ViewerTools(wb, fitted, { fit() }, { zoomAt(Offset(view.width / 2f, view.height / 2f), 1f / scale) }, Modifier.align(Alignment.TopEnd).padding(4.dp))
         }
-        wb.renderError?.let { (msg, _) -> Surface(color = Color(0xE6200000), shape = RoundedCornerShape(8.dp), modifier = Modifier.align(Alignment.Center).padding(16.dp)) { Text(msg, color = Color.White, modifier = Modifier.padding(12.dp), fontSize = 13.sp) } }
+        // at the bottom, so the image stays visible; a tap frees the cached frames and tries again
+        wb.renderError?.let { (msg, _) -> Surface(onClick = { wb.retryRender() }, color = Color(0xE6200000), shape = RoundedCornerShape(8.dp), modifier = Modifier.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = 56.dp)) {
+            Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) { Text(msg, color = Color.White, fontSize = 13.sp); Text("Tap to try again", color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp) }
+        } }
         if (edit != null && editDef != null) EditBanner(wb, editDef, Modifier.align(Alignment.TopCenter).padding(top = 6.dp))
         if (wb.rendering && !wb.playing) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter).height(2.dp), color = Pal.gold, trackColor = Color.Transparent)
     }

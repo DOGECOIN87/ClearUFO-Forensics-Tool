@@ -434,7 +434,10 @@ private fun SettingsDialog(wb: Workbench, onDismiss: () -> Unit) {
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
         text = { Column(Modifier.verticalScroll(rememberScrollState())) {
             choice("Processing threads (this device has ${Par.available} cores)", listOf(0 to "Auto") + (1..8).map { it to "$it" }, threads) { threads = it }
-            choice("Frame cache (memory available to the app: ${Runtime.getRuntime().maxMemory() / 1048576} MB)", listOf(0 to "Auto (25%)", 256 to "256 MB", 512 to "512 MB", 1024 to "1 GB", 2048 to "2 GB"), cache) { cache = it }
+            val heapMB = (Runtime.getRuntime().maxMemory() / 1048576).toInt()
+            // sizes up to 40% of the app's memory (the rest is needed while frames are computed)
+            val cacheOpts = listOf(0 to "Auto (25%)") + listOf(64, 128, 192, 256, 384, 512, 1024).filter { it <= heapMB * 0.4 }.map { it to (if (it >= 1024) "${it / 1024} GB" else "$it MB") }
+            choice("Frame cache (memory available to the app: $heapMB MB)", cacheOpts, if (cacheOpts.any { it.first == cache }) cache else 0) { cache = it }
             choice("Theme", listOf("midnight" to "Night", "classic" to "Daylight", "system" to "System"), theme) { theme = it }
             choice("Layout", listOf("auto" to "Automatic (fold aware)", "phone" to "Phone", "dual" to "Two panes"), layout) { layout = it }
             toggle("Lossless exports only", lossless) { lossless = it }

@@ -34,13 +34,13 @@ val IMPLS: Map<String, FilterImpl> = basicFilters + temporalFilters + linkFilter
  * a render superseded by a newer one) stops waiting, but never cancels a frame that other renders are waiting for.
  */
 class FrameCache(@Volatile var limit: Long, private val scope: CoroutineScope) {
-    private class Entry { lateinit var d: Deferred<Frame>; var bytes = 0L }
+    private class Entry { lateinit var d: Deferred<Frame>; var bytes = 0L; var waiters = 0 }
     private val map = LinkedHashMap<String, Entry>(64, 0.75f, true)
     @Volatile var bytes = 0L; private set
 
     suspend fun getOrCompute(key: String, compute: suspend () -> Frame): Frame {
         val e = synchronized(this) {
-            map[key] ?: Entry().also { ent ->
+            (map[key] ?: Entry().also { ent ->
                 map[key] = ent
                 ent.d = scope.async(start = CoroutineStart.LAZY) {
                     try {
@@ -50,10 +50,19 @@ class FrameCache(@Volatile var limit: Long, private val scope: CoroutineScope) {
                         throw t
                     }
                 }
-            }
+            }).also { it.waiters++ }
         }
         e.d.start()
-        return e.d.await()
+        try {
+            return e.d.await()
+        } finally {
+            // a frame nobody waits for any more (scrubbing, a superseded render) is abandoned with its upstream work,
+            // instead of filling the memory with full-resolution frames no one will look at
+            synchronized(this) {
+                e.waiters--
+                if (e.waiters == 0 && !e.d.isCompleted) { if (map[key] === e) map.remove(key); e.d.cancel() }
+            }
+        }
     }
 
     private fun evict() {
@@ -171,11 +180,18 @@ class Engine {
         override suspend fun getFrame(i: Int): Frame {
             val fi = i.coerceIn(0, maxOf(0, s.info.frameCount - 1))
             return cache.getOrCompute("$key#$fi") {
-                try { s.getFrame(fi) }
+                try {
+                    try { s.getFrame(fi) }
+                    catch (e: OutOfMemoryError) {
+                        // free the cached frames and try once more before giving up
+                        cache.clear(); System.gc()
+                        s.getFrame(fi)
+                    }
+                }
                 catch (e: FilterException) { throw e }
                 catch (e: Cancelled) { throw e }
                 catch (e: kotlinx.coroutines.CancellationException) { throw e }
-                catch (e: OutOfMemoryError) { cache.clear(); throw FilterException("$name: not enough memory (the frame is too large for this device)", filterId) }
+                catch (e: OutOfMemoryError) { cache.clear(); throw FilterException("$name: not enough memory for a ${s.info.width}×${s.info.height} frame here. Use a smaller Size/window, fewer filters, or Resize before this step.", filterId) }
                 catch (e: Exception) { throw FilterException("$name: ${e.message ?: e.javaClass.simpleName}", filterId, e) }
             }
         }

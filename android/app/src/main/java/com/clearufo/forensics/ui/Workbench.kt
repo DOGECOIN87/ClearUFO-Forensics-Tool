@@ -108,7 +108,10 @@ class Workbench(app: Application) : AndroidViewModel(app) {
 
     fun applyPrefs() {
         Par.threads = if (prefs.threads > 0) prefs.threads else Par.available
-        engine.cache.limit = if (prefs.cacheMB > 0) prefs.cacheMB * 1048576L else (Runtime.getRuntime().maxMemory() * 0.25).toLong()
+        // never more than 40% of the heap: the frames being computed (a temporal window, the steps of the chain) need
+        // the rest, and a cache the size of the heap would end every render in out-of-memory
+        val heap = Runtime.getRuntime().maxMemory()
+        engine.cache.limit = if (prefs.cacheMB > 0) minOf(prefs.cacheMB * 1048576L, (heap * 0.4).toLong()) else (heap * 0.25).toLong()
     }
 
     fun toast(m: String) { messages.add(m) }
@@ -217,6 +220,8 @@ class Workbench(app: Application) : AndroidViewModel(app) {
 
     // ------------------------------------------------------------ rendering and playback
     fun requestRender() { renderTrigger.value = renderTrigger.value + 1 }
+    /** After an error: drop the cached frames (memory) and render the frame again. */
+    fun retryRender() { renderError = null; engine.clearCache(); System.gc(); requestRender() }
 
     /**
      * The filter whose output the viewer shows: the end of the chain (null) unless "this step only" is chosen, Show
@@ -271,7 +276,9 @@ class Workbench(app: Application) : AndroidViewModel(app) {
                 val end = outPoint ?: (n - 1)
                 // read ahead: the next frame is computed while this one is shown (the cache shares the work)
                 val vf = viewFilterId; val si = showingInput
-                if (i < end) launch(Dispatchers.Default) { runCatching { engine.render(c, vf, si, i + 1) } }
+                // (only for frames up to ~1.5 megapixels: larger ones would double the memory needed)
+                val small = (render?.frame?.let { it.w.toLong() * it.h } ?: 0L) <= 1_600_000L
+                if (i < end && small) launch(Dispatchers.Default) { runCatching { engine.render(c, vf, si, i + 1) } }
                 val r = try { engine.render(c, vf, si, i) }
                     catch (e: CancellationException) { throw e }
                     catch (e: Cancelled) { continue }

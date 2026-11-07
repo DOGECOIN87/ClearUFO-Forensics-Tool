@@ -13,8 +13,8 @@ android {
         // Android 10+. The Galaxy Z Fold3 ships Android 11 and runs One UI 4.0 / Android 12 (API 31) and later.
         minSdk = 29
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 4
+        versionName = "1.0.3"
         vectorDrawables { useSupportLibrary = true }
     }
 
