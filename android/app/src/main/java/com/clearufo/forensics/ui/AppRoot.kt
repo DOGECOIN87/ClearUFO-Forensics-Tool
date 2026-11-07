@@ -138,6 +138,8 @@ fun AppRoot(wb: Workbench, activity: Activity) {
                 else -> Mode.STACK
             }
             val compact = mode == Mode.STACK || mode == Mode.SIDE
+            // the evidence decides: tall (portrait) frames get a tall viewer column
+            val tallMedia = wb.render?.info?.let { it.height > it.width * 1.15 } ?: false
             val viewer: @Composable (Modifier) -> Unit = { m -> ViewerPane(wb, m, compact, actions.openMedia, { dialog = "pattern" }, actions.openProject) }
             when (mode) {
                 Mode.STACK -> {
@@ -161,7 +163,18 @@ fun AppRoot(wb: Workbench, activity: Activity) {
                     Column(Modifier.weight(1.6f).fillMaxHeight()) { TopBar(wb, actions, compact = true); viewer(Modifier.weight(1f).fillMaxWidth()); PlayerBar(wb, compact = true) }
                     PanelGroup(listOf(Panel.SETTINGS, Panel.HISTORY, Panel.FILTERS, Panel.TOOLS), panelFocus, { panelFocus = null }, Modifier.weight(1f).fillMaxHeight()) { panel(it) }
                 }
-                Mode.DUAL -> if (ratio < 1.05f) {
+                Mode.DUAL -> if (tallMedia) {
+                    // portrait videos (phone recordings): a tall viewer column, settings and the chain stacked beside it
+                    Row(Modifier.fillMaxSize()) {
+                        Column(Modifier.weight(if (ratio < 1.05f) 1.15f else 1f).fillMaxHeight()) { TopBar(wb, actions, compact = true); viewer(Modifier.weight(1f).fillMaxWidth()); PlayerBar(wb, compact = true) }
+                        VerticalDivider()
+                        Column(Modifier.weight(1f).fillMaxHeight()) {
+                            PanelGroup(listOf(Panel.SETTINGS, Panel.TOOLS), panelFocus.takeIf { it == Panel.SETTINGS || it == Panel.TOOLS }, { panelFocus = null }, Modifier.weight(1.15f).fillMaxWidth()) { panel(it) }
+                            HorizontalDivider()
+                            PanelGroup(listOf(Panel.HISTORY, Panel.FILTERS), panelFocus.takeIf { it == Panel.FILTERS || it == Panel.HISTORY }, { panelFocus = null }, Modifier.weight(1f).fillMaxWidth()) { panel(it) }
+                        }
+                    }
+                } else if (ratio < 1.05f) {
                     // Fold3 unfolded, portrait (≈ 5:4): large viewer, two panel groups side by side underneath
                     Column(Modifier.fillMaxSize()) {
                         TopBar(wb, actions, compact = false)

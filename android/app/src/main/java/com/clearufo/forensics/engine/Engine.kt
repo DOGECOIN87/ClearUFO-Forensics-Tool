@@ -28,27 +28,32 @@ import java.util.concurrent.ConcurrentHashMap
 
 val IMPLS: Map<String, FilterImpl> = basicFilters + temporalFilters + linkFilters + presentationFilters
 
-/** Byte-budgeted LRU of computed frames; concurrent requests for the same frame share one computation. */
-class FrameCache(@Volatile var limit: Long) {
-    private class Entry(val d: CompletableDeferred<Frame>, var bytes: Long = 0)
+/**
+ * Byte-budgeted LRU of computed frames; concurrent requests for the same frame share one computation. Computations run
+ * in the engine's own scope, not in the coroutine of whoever asked first: a caller that is cancelled (playback paused,
+ * a render superseded by a newer one) stops waiting, but never cancels a frame that other renders are waiting for.
+ */
+class FrameCache(@Volatile var limit: Long, private val scope: CoroutineScope) {
+    private class Entry { lateinit var d: Deferred<Frame>; var bytes = 0L }
     private val map = LinkedHashMap<String, Entry>(64, 0.75f, true)
     @Volatile var bytes = 0L; private set
 
     suspend fun getOrCompute(key: String, compute: suspend () -> Frame): Frame {
-        val (entry, mine) = synchronized(this) {
-            map[key]?.let { it to false } ?: Entry(CompletableDeferred()).also { map[key] = it } to true
+        val e = synchronized(this) {
+            map[key] ?: Entry().also { ent ->
+                map[key] = ent
+                ent.d = scope.async(start = CoroutineStart.LAZY) {
+                    try {
+                        compute().also { f -> synchronized(this@FrameCache) { if (map[key] === ent) { ent.bytes = f.bytes; bytes += f.bytes; evict() } } }
+                    } catch (t: Throwable) {
+                        synchronized(this@FrameCache) { if (map[key] === ent) map.remove(key) }
+                        throw t
+                    }
+                }
+            }
         }
-        if (!mine) return entry.d.await()
-        try {
-            val f = compute()
-            entry.d.complete(f)
-            synchronized(this) { if (map[key] === entry) { entry.bytes = f.bytes; bytes += f.bytes; evict() } }
-            return f
-        } catch (t: Throwable) {
-            synchronized(this) { if (map[key] === entry) map.remove(key) }
-            entry.d.completeExceptionally(t)
-            throw t
-        }
+        e.d.start()
+        return e.d.await()
     }
 
     private fun evict() {
@@ -79,7 +84,7 @@ class Engine {
     private val chains: Map<String, ChainDoc> get() = snap.chains
     private class Node(val key: String, val stream: Deferred<Stream>)
     private val nodes = ConcurrentHashMap<String, Node>()
-    val cache = FrameCache((Runtime.getRuntime().maxMemory() * 0.35).toLong())
+    val cache = FrameCache((Runtime.getRuntime().maxMemory() * 0.35).toLong(), scope)
 
     private val _progress = MutableStateFlow<Map<String, Pair<String, Double>>>(emptyMap())
     val progress: StateFlow<Map<String, Pair<String, Double>>> = _progress

@@ -14,6 +14,8 @@ import com.clearufo.forensics.project.FilterInstance
 import com.clearufo.forensics.project.ProjectDoc
 import com.clearufo.forensics.project.ProjectJson
 import com.clearufo.forensics.project.newFilter
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
@@ -80,6 +82,34 @@ class EngineTest {
         assertEquals(13, e.render("ct", null, false, 0).info.frameCount)  // 8 + 5
         assertEquals(48, e.render("ct", null, false, 10).frame.w)         // letterboxed to the first chain
         assertEquals(2, e.render("cs", null, false, 0).info.frameCount)   // frames 0 and 5 are I frames
+    }
+
+    /** Playback read-ahead: a cancelled request must not cancel the shared computation others wait for ("z was canceled"). */
+    @Test fun cancellingOneRequestDoesNotFailAnother() = runBlocking {
+        val slow = object : SourceProvider by FakeSource(3) {
+            override suspend fun getFrame(i: Int, opts: DecodeOptions): Frame { kotlinx.coroutines.delay(300); return Frame.alloc(8, 8) }
+        }
+        val e = Engine(); e.addSource("s", slow)
+        e.setProject(listOf(ChainDoc("c", "c", listOf(f("video_loader", "source" to "s"), f("negative")))))
+        val first = launch(kotlinx.coroutines.Dispatchers.Default) { e.render("c", null, false, 1) }
+        kotlinx.coroutines.delay(100)
+        val second = async(kotlinx.coroutines.Dispatchers.Default) { e.render("c", null, false, 1) }
+        kotlinx.coroutines.delay(20)
+        first.cancel()
+        assertEquals(8, second.await().frame.w)
+    }
+
+    @Test fun quarterTurnsAreExact() = runBlocking {
+        val e = Engine(); val src = FakeSource(2); e.addSource("s", src)
+        for ((angle, w, h) in listOf(Triple(90.0, 32, 48), Triple(-90.0, 32, 48), Triple(180.0, 48, 32))) {
+            e.setProject(listOf(ChainDoc("c", "c", listOf(f("video_loader", "source" to "s"), f("rotate", "angle" to angle, "expand" to true)))))
+            val o = e.render("c", null, false, 0).frame; val i = src.getFrame(0)
+            assertEquals(w, o.w); assertEquals(h, o.h)
+            for (y in 0 until o.h) for (x in 0 until o.w) {
+                val (sx, sy) = when (angle) { 90.0 -> y to (i.h - 1 - x); -90.0 -> (i.w - 1 - y) to x; else -> (i.w - 1 - x) to (i.h - 1 - y) }
+                for (c in 0 until 4) assertEquals(i.d[(sy * i.w + sx) * 4 + c], o.d[(y * o.w + x) * 4 + c], 0f)
+            }
+        }
     }
 
     @Test fun errorsNameTheFilter() = runBlocking {

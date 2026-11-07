@@ -401,13 +401,37 @@ private val resizeF: FilterImpl = { input, p, _ ->
     mapStream(src, src.info.copy(width = nw, height = nh)) { f, _ -> resize(f, nw, nh, interp) }
 }
 
+/** Exact rotation by a multiple of 90° (pixels moved, nothing interpolated): out(x, y) = in(map(x, y)). */
+private fun quarterTurn(f: Frame, turns: Int): Frame {
+    val w = f.w; val h = f.h
+    val ow = if (turns % 2 != 0) h else w; val oh = if (turns % 2 != 0) w else h
+    val out = Frame.alloc(ow, oh, false)
+    Par.forRows(oh) { y0, y1 -> for (y in y0 until y1) for (x in 0 until ow) {
+        val sx: Int; val sy: Int
+        when (turns) { 1 -> { sx = y; sy = h - 1 - x }; 3 -> { sx = w - 1 - y; sy = x }; else -> { sx = w - 1 - x; sy = h - 1 - y } }
+        System.arraycopy(f.d, (sy * w + sx) * 4, out.d, (y * ow + x) * 4, 4)
+    } }
+    return out
+}
+
 private val rotate: FilterImpl = { input, p, _ ->
     val src = needInput(input)
+    val deg = ((p.num("angle") % 360) + 360) % 360
+    val turns = if (deg % 90.0 == 0.0) (deg / 90).toInt() else -1
+    // multiples of 90° (e.g. the rotation metadata of phone videos): lossless, and the canvas is exactly w×h or h×w
+    if (turns == 0) src
+    else if (turns == 2 || (turns > 0 && p.bool("expand"))) {
+        val sw = if (turns % 2 != 0) src.info.height else src.info.width; val sh = if (turns % 2 != 0) src.info.width else src.info.height
+        mapStream(src, src.info.copy(width = sw, height = sh)) { f, _ -> quarterTurn(f, turns) }
+    } else rotateWarp(src, p)
+}
+
+private fun rotateWarp(src: Stream, p: Params): Stream {
     val a = p.num("angle") * PI / 180; val c = cos(a); val s = sin(a)
     val w = src.info.width; val h = src.info.height
     val ow = if (p.bool("expand")) ceil(abs(w * c) + abs(h * s)).toInt() else w; val oh = if (p.bool("expand")) ceil(abs(w * s) + abs(h * c)).toInt() else h
     val bg = parseColor(p.str("background")); val interp = Interp.of(p.str("interp"))
-    mapStream(src, src.info.copy(width = ow, height = oh)) { f, _ ->
+    return mapStream(src, src.info.copy(width = ow, height = oh)) { f, _ ->
         warp(f, ow, oh, interp, bg) { x, y, q -> val dx = x - ow / 2.0 + 0.5; val dy = y - oh / 2.0 + 0.5; q[0] = c * dx + s * dy + w / 2.0 - 0.5; q[1] = -s * dx + c * dy + h / 2.0 - 0.5 }
     }
 }

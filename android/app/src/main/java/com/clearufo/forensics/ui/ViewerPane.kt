@@ -72,7 +72,9 @@ fun ViewerPane(wb: Workbench, modifier: Modifier = Modifier, compact: Boolean = 
     val edit = wb.edit
     val editDef = edit?.let { e -> def?.params?.firstOrNull { it.key == e.key } }
     // overlays are in the coordinates of the view they belong to (filter input for geometry-changing filters)
-    val overlaysValid = def != null && (def.overlayOn != "input" || wb.showingInput)
+    // (only when the viewer shows the selected filter itself, or it is the last step of the chain)
+    val isLast = sel != null && wb.chain?.filters?.lastOrNull { it.enabled || it === wb.chain?.filters?.first() }?.id == sel.id
+    val overlaysValid = def != null && (wb.viewFilterId == sel?.id || isLast) && (def.overlayOn != "input" || wb.showingInput)
 
     Box(modifier.background(Color.Black).clipToBounds().onSizeChanged { view = it }) {
         if (r == null) {
@@ -165,7 +167,7 @@ fun ViewerPane(wb: Workbench, modifier: Modifier = Modifier, compact: Boolean = 
                 }
             }) {
                 val dst = IntSize((iw * scale).roundToInt().coerceAtLeast(1), (ih * scale).roundToInt().coerceAtLeast(1))
-                drawImage(bmp, dstOffset = IntOffset(offset.x.roundToInt(), offset.y.roundToInt()), dstSize = dst, filterQuality = if (scale >= 2f) FilterQuality.None else FilterQuality.Low)
+                drawImage(bmp, dstOffset = IntOffset(offset.x.roundToInt(), offset.y.roundToInt()), dstSize = dst, filterQuality = if (scale >= 4f) FilterQuality.None else FilterQuality.High)
                 if (overlaysValid && sel != null && def != null) drawOverlays(def, sel.params, edit, offset, scale)
                 when (val d = draft) {
                     is Draft.R -> { val a = d.a * scale + offset; val b = d.b * scale + offset; drawRect(Pal.gold, Offset(min(a.x, b.x), min(a.y, b.y)), Size(kotlin.math.abs(b.x - a.x), kotlin.math.abs(b.y - a.y)), style = Stroke(2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 6f)))) }
@@ -228,6 +230,9 @@ private fun ViewerTools(wb: Workbench, fitted: Boolean, onFit: () -> Unit, on100
             IconButton(onClick = { wb.tool = if (wb.tool == Tool.INSPECT) Tool.POINTER else Tool.INSPECT; if (wb.tool == Tool.POINTER) wb.inspect = null }) {
                 Icon(Icons.Outlined.Colorize, "Pixel inspector", tint = if (wb.tool == Tool.INSPECT) Pal.gold else Color.White)
             }
+            IconButton(onClick = { wb.toggleViewFinal() }) {
+                Icon(if (wb.viewFinal) Icons.Outlined.Layers else Icons.Filled.Layers, if (wb.viewFinal) "Showing the final result (tap: only up to the selected step)" else "Showing up to the selected step (tap: final result)", tint = if (wb.viewFinal) Color.White else Pal.gold)
+            }
             IconButton(onClick = { wb.showInput = !wb.showInput; wb.requestRender() }) { Icon(if (wb.showInput) Icons.Filled.Compare else Icons.Outlined.Compare, "Show input of the selected filter", tint = if (wb.showInput) Pal.gold else Color.White) }
         }
     }
@@ -239,7 +244,7 @@ private fun ViewerHud(wb: Workbench, r: RenderState, scale: Float, compact: Bool
     Surface(color = Color(0x99000000), shape = RoundedCornerShape(topEnd = 8.dp), modifier = modifier) {
         Text(
             buildString {
-                if (r.input) append("INPUT · ")
+                if (r.input) append("INPUT · ") else if (wb.viewFilterId != null) append("STEP · ")
                 append("${r.info.width}×${r.info.height}")
                 if (r.info.frameCount > 1) append(" · ${r.index + 1}/${r.info.frameCount} · ${m.type}")
                 append(" · ${(scale * 100).roundToInt()}%")

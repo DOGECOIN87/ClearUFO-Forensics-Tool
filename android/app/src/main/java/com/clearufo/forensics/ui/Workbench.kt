@@ -44,6 +44,8 @@ class Prefs(ctx: Context) {
     var autoSave: Boolean get() = sp.getBoolean("autoSave", true); set(v) { sp.edit().putBoolean("autoSave", v).apply() }
     var hashOnLoad: Boolean get() = sp.getBoolean("hashOnLoad", true); set(v) { sp.edit().putBoolean("hashOnLoad", v).apply() }
     var layout: String get() = sp.getString("layout", "auto")!!; set(v) { sp.edit().putString("layout", v).apply() }
+    /** The viewer shows the final output of the chain (true) or the output of the selected filter (false). */
+    var viewFinal: Boolean get() = sp.getBoolean("viewFinal", true); set(v) { sp.edit().putBoolean("viewFinal", v).apply() }
 }
 
 class Workbench(app: Application) : AndroidViewModel(app) {
@@ -72,6 +74,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
     var dirty by mutableStateOf(false); private set
     var themeName by mutableStateOf(prefs.theme)
     var layoutPref by mutableStateOf(prefs.layout)
+    var viewFinal by mutableStateOf(prefs.viewFinal)
     val messages = mutableStateListOf<String>()
     val progress = engine.progress
     private val tasks = MutableStateFlow<Map<String, Pair<String, Double>>>(emptyMap())
@@ -208,8 +211,17 @@ class Workbench(app: Application) : AndroidViewModel(app) {
     // ------------------------------------------------------------ rendering and playback
     fun requestRender() { renderTrigger.value = renderTrigger.value + 1 }
 
+    /**
+     * The filter whose output the viewer shows: the end of the chain (null) unless "this step only" is chosen, Show
+     * Input is on, or a region/line/point of the selected filter is being drawn (its own coordinates).
+     */
+    val viewFilterId: String? get() = if (viewFinal && edit == null && !showInput) null else filterId
+
+    fun toggleViewFinal() { viewFinal = !viewFinal; prefs.viewFinal = viewFinal; requestRender() }
+
     /** The viewer shows the filter input while an "input" overlay is edited (crop, perspective) or Show Input is on. */
     val showingInput: Boolean get() {
+        if (viewFilterId == null) return false
         val f = selectedFilter ?: return false
         val def = FILTERS[f.type]
         return (showInput || (edit != null && def?.overlayOn == "input")) && chain?.filters?.indexOf(f)?.let { it > 0 } == true
@@ -219,8 +231,8 @@ class Workbench(app: Application) : AndroidViewModel(app) {
         val c = chainId ?: run { render = null; renderError = null; return }
         rendering = true
         try {
-            val r = engine.render(c, filterId, showingInput, frame)
-            val bmp = withContext(Dispatchers.Default) { Bitmap.createBitmap(r.frame.toArgb(), r.frame.w, r.frame.h, Bitmap.Config.ARGB_8888) }
+            val r = engine.render(c, viewFilterId, showingInput, frame)
+            val bmp = withContext(Dispatchers.Default) { displayBitmap(r.frame) }
             render = RenderState(bmp, r.frame, r.info, r.meta, r.index, r.ms, showingInput)
             if (frame != r.index) frame = r.index
             renderError = null
@@ -231,6 +243,9 @@ class Workbench(app: Application) : AndroidViewModel(app) {
         } catch (e: Exception) { renderError = (e.message ?: e.javaClass.simpleName) to null
         } finally { rendering = false }
     }
+
+    /** Full-resolution display bitmap; mipmaps give smooth, alias-free shrinking of large frames. */
+    private fun displayBitmap(f: Frame): Bitmap = Bitmap.createBitmap(f.toArgb(), f.w, f.h, Bitmap.Config.ARGB_8888).apply { setHasMipMap(true) }
 
     fun togglePlay() { if (playing) stop() else play() }
 
@@ -246,12 +261,17 @@ class Workbench(app: Application) : AndroidViewModel(app) {
             while (isActive && playing) {
                 val t0 = System.nanoTime()
                 val fps = (render?.info?.fps ?: 25.0) * speed
-                val next = async(Dispatchers.Default) { runCatching { engine.render(c, filterId, showingInput, min(n - 1, i + 1)) } }
-                val r = try { engine.render(c, filterId, showingInput, i) } catch (e: Cancelled) { continue } catch (e: Exception) { renderError = (e.message ?: "Error") to (e as? FilterException)?.filterId; break }
-                val bmp = withContext(Dispatchers.Default) { Bitmap.createBitmap(r.frame.toArgb(), r.frame.w, r.frame.h, Bitmap.Config.ARGB_8888) }
-                render = RenderState(bmp, r.frame, r.info, r.meta, r.index, r.ms, showingInput); frame = r.index
-                next.cancel()
                 val end = outPoint ?: (n - 1)
+                // read ahead: the next frame is computed while this one is shown (the cache shares the work)
+                val vf = viewFilterId; val si = showingInput
+                if (i < end) launch(Dispatchers.Default) { runCatching { engine.render(c, vf, si, i + 1) } }
+                val r = try { engine.render(c, vf, si, i) }
+                    catch (e: CancellationException) { throw e }
+                    catch (e: Cancelled) { continue }
+                    catch (e: Exception) { renderError = (e.message ?: e.javaClass.simpleName) to (e as? FilterException)?.filterId; break }
+                renderError = null
+                val bmp = withContext(Dispatchers.Default) { displayBitmap(r.frame) }
+                render = RenderState(bmp, r.frame, r.info, r.meta, r.index, r.ms, si); frame = r.index
                 if (i >= end) { playing = false; break }
                 i++
                 val wait = (1e9 / fps - (System.nanoTime() - t0)).toLong() / 1_000_000
@@ -337,9 +357,14 @@ class Workbench(app: Application) : AndroidViewModel(app) {
         val src = openSource(id, listOf(f), kind)
         val loader = if (kind == "image") "image_loader" else "video_loader"
         val fi = newFilter(loader).let { it.copy(params = it.params + ("source" to id)) }
-        val c = ChainDoc(uid("c"), f.name.substringBeforeLast('.'), listOf(fi))
+        // phone videos store portrait recordings as landscape frames plus a rotation flag: show them upright with an
+        // explicit, lossless Rotate step (visible in History and the report; remove it to see the frames as stored)
+        val rot = ((src.info.rotation % 360) + 360) % 360
+        val steps = if (kind == "video" && rot != 0 && rot % 90 == 0) listOf(fi, newFilter("rotate").let { it.copy(params = it.params + mapOf("angle" to (if (rot == 270) -90.0 else rot.toDouble()), "interp" to "nearest", "expand" to true)) }) else listOf(fi)
+        val c = ChainDoc(uid("c"), f.name.substringBeforeLast('.'), steps)
         mutate { p -> p.copy(chains = p.chains + c, sources = p.sources + (id to refOf(id, kind, listOf(f)))) }
         selectChain(c.id)
+        if (steps.size > 1) toast("The video is stored rotated ($rot° metadata): a lossless Rotate step shows it upright. Remove that step to see the frames as stored.")
         hashLater(id, listOf(f))
         if (src.info.vfr != null) toast("Variable frame rate: ${src.info.vfr}")
     }
