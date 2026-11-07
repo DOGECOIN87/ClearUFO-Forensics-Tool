@@ -140,6 +140,24 @@ class EngineTest {
         e.setProject(tl("sync" to "time")); assertEquals(36, e.render("t", null, false, 0).info.frameCount)
     }
 
+    @Test fun extractChannelAfterSmoothingFollowsItsParameter() = runBlocking {
+        val e = Engine(); e.addSource("a", FakeSource(12))
+        val loader = f("video_loader", "source" to "a"); val sm = f("temporal_smoothing", "method" to "median", "size" to 4.0)
+        val src = FakeSource(12)
+        for (ch in listOf("r", "g", "b", "y", "r")) {
+            val ex = f("extract_channel", "channel" to ch).copy(id = "ex")
+            e.setProject(listOf(ChainDoc("c", "c", listOf(loader, sm, ex))))
+            val out = e.render("c", null, false, 5).frame
+            val mid = e.render("c", sm.id, false, 5).frame
+            for (k in listOf(0, 100, 700)) {
+                val q = k * 4
+                val want = when (ch) { "r" -> mid.d[q]; "g" -> mid.d[q + 1]; "b" -> mid.d[q + 2]; else -> (0.299 * mid.d[q] + 0.587 * mid.d[q + 1] + 0.114 * mid.d[q + 2]).toFloat() }
+                assertEquals("$ch pixel $k R", want, out.d[q], 1e-3f); assertEquals("$ch pixel $k G", want, out.d[q + 1], 1e-3f); assertEquals("$ch pixel $k B", want, out.d[q + 2], 1e-3f)
+            }
+        }
+        assertTrue(src.n == 12)
+    }
+
     @Test fun errorsNameTheFilter() = runBlocking {
         val e = Engine()
         val loader = f("video_loader", "source" to "missing")
