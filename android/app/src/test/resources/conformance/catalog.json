@@ -1,0 +1,3784 @@
+[
+ {
+  "id": "image_loader",
+  "category": "Load",
+  "kind": "loader",
+  "params": [
+   {
+    "key": "source",
+    "type": "source",
+    "default": "",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "_info",
+    "type": "fileinfo",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "video_loader",
+  "category": "Load",
+  "kind": "loader",
+  "params": [
+   {
+    "key": "source",
+    "type": "source",
+    "default": "",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "engine",
+    "type": "select",
+    "default": "webcodecs",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "webcodecs",
+     "media"
+    ]
+   },
+   {
+    "key": "colorRange",
+    "type": "select",
+    "default": "auto",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "auto",
+     "limited",
+     "full"
+    ]
+   },
+   {
+    "key": "matrix",
+    "type": "select",
+    "default": "auto",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "auto",
+     "bt601",
+     "bt709",
+     "bt2020"
+    ]
+   },
+   {
+    "key": "chroma",
+    "type": "select",
+    "default": "bicubic",
+    "legacy": "nearest",
+    "min": null,
+    "max": null,
+    "options": [
+     "bicubic",
+     "bilinear",
+     "nearest"
+    ]
+   },
+   {
+    "key": "siting",
+    "type": "select",
+    "default": "auto",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "auto",
+     "left",
+     "center",
+     "topleft"
+    ]
+   },
+   {
+    "key": "hdr",
+    "type": "select",
+    "default": "tonemap",
+    "legacy": "none",
+    "min": null,
+    "max": null,
+    "options": [
+     "tonemap",
+     "none"
+    ]
+   },
+   {
+    "key": "hdrPeak",
+    "type": "number",
+    "default": 1000,
+    "legacy": null,
+    "min": 200,
+    "max": 10000,
+    "options": null
+   },
+   {
+    "key": "_dvr",
+    "type": "action",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "_dvrLast",
+    "type": "action",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "_info",
+    "type": "fileinfo",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "sequence_loader",
+  "category": "Load",
+  "kind": "loader",
+  "params": [
+   {
+    "key": "source",
+    "type": "source",
+    "default": "",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "fps",
+    "type": "number",
+    "default": 25,
+    "legacy": null,
+    "min": 0.1,
+    "max": 240,
+    "options": null
+   },
+   {
+    "key": "_info",
+    "type": "fileinfo",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "test_pattern",
+  "category": "Load",
+  "kind": "loader",
+  "params": [
+   {
+    "key": "pattern",
+    "type": "select",
+    "default": "plate",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "plate",
+     "bars",
+     "chart",
+     "zone",
+     "grid",
+     "periodic"
+    ]
+   },
+   {
+    "key": "width",
+    "type": "int",
+    "default": 640,
+    "legacy": null,
+    "min": 64,
+    "max": 3840,
+    "options": null
+   },
+   {
+    "key": "height",
+    "type": "int",
+    "default": 360,
+    "legacy": null,
+    "min": 64,
+    "max": 2160,
+    "options": null
+   },
+   {
+    "key": "frames",
+    "type": "int",
+    "default": 60,
+    "legacy": null,
+    "min": 1,
+    "max": 10000,
+    "options": null
+   },
+   {
+    "key": "fps",
+    "type": "number",
+    "default": 25,
+    "legacy": null,
+    "min": 1,
+    "max": 120,
+    "options": null
+   },
+   {
+    "key": "blur",
+    "type": "number",
+    "default": 9,
+    "legacy": null,
+    "min": 0,
+    "max": 40,
+    "options": null
+   },
+   {
+    "key": "blurAngle",
+    "type": "number",
+    "default": 12,
+    "legacy": null,
+    "min": -90,
+    "max": 90,
+    "options": null
+   },
+   {
+    "key": "noise",
+    "type": "number",
+    "default": 10,
+    "legacy": null,
+    "min": 0,
+    "max": 60,
+    "options": null
+   },
+   {
+    "key": "shake",
+    "type": "number",
+    "default": 4,
+    "legacy": null,
+    "min": 0,
+    "max": 30,
+    "options": null
+   },
+   {
+    "key": "seed",
+    "type": "int",
+    "default": 7,
+    "legacy": null,
+    "min": 0,
+    "max": 9999,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "video_mixer",
+  "category": "Link",
+  "kind": "link",
+  "params": [
+   {
+    "key": "second",
+    "type": "chain",
+    "default": "",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "mode",
+    "type": "select",
+    "default": "blend",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "blend",
+     "difference",
+     "absdiff",
+     "sbs_h",
+     "sbs_v",
+     "wipe_h",
+     "wipe_v",
+     "checker"
+    ]
+   },
+   {
+    "key": "balance",
+    "type": "number",
+    "default": 0.5,
+    "legacy": null,
+    "min": 0,
+    "max": 1,
+    "options": null
+   },
+   {
+    "key": "gain",
+    "type": "number",
+    "default": 1,
+    "legacy": null,
+    "min": 1,
+    "max": 20,
+    "options": null
+   },
+   {
+    "key": "offset",
+    "type": "int",
+    "default": 0,
+    "legacy": null,
+    "min": -1000,
+    "max": 1000,
+    "options": null
+   },
+   {
+    "key": "checker",
+    "type": "int",
+    "default": 32,
+    "legacy": null,
+    "min": 4,
+    "max": 256,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "multiview",
+  "category": "Link",
+  "kind": "link",
+  "params": [
+   {
+    "key": "chains",
+    "type": "chains",
+    "default": [],
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "columns",
+    "type": "int",
+    "default": 0,
+    "legacy": null,
+    "min": 0,
+    "max": 8,
+    "options": null
+   },
+   {
+    "key": "labels",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "border",
+    "type": "int",
+    "default": 2,
+    "legacy": null,
+    "min": 0,
+    "max": 20,
+    "options": null
+   },
+   {
+    "key": "borderColor",
+    "type": "color",
+    "default": "#202020",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "picture_in_picture",
+  "category": "Link",
+  "kind": "link",
+  "params": [
+   {
+    "key": "inset",
+    "type": "chain",
+    "default": "",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "x",
+    "type": "number",
+    "default": 70,
+    "legacy": null,
+    "min": 0,
+    "max": 100,
+    "options": null
+   },
+   {
+    "key": "y",
+    "type": "number",
+    "default": 5,
+    "legacy": null,
+    "min": 0,
+    "max": 100,
+    "options": null
+   },
+   {
+    "key": "scale",
+    "type": "number",
+    "default": 25,
+    "legacy": null,
+    "min": 5,
+    "max": 100,
+    "options": null
+   },
+   {
+    "key": "border",
+    "type": "int",
+    "default": 2,
+    "legacy": null,
+    "min": 0,
+    "max": 20,
+    "options": null
+   },
+   {
+    "key": "borderColor",
+    "type": "color",
+    "default": "#ffffff",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "offset",
+    "type": "int",
+    "default": 0,
+    "legacy": null,
+    "min": -1000,
+    "max": 1000,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "timeline",
+  "category": "Link",
+  "kind": "link",
+  "params": [
+   {
+    "key": "chains",
+    "type": "chains",
+    "default": [],
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "video_writer",
+  "category": "Write",
+  "kind": "writer",
+  "params": [
+   {
+    "key": "format",
+    "type": "select",
+    "default": "avi-raw",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "avi-raw",
+     "tiff16",
+     "tiff32f",
+     "png16",
+     "tiff",
+     "png",
+     "avi-mjpeg",
+     "mp4",
+     "webm"
+    ]
+   },
+   {
+    "key": "quality",
+    "type": "number",
+    "default": 1,
+    "legacy": null,
+    "min": 0.1,
+    "max": 1,
+    "options": null
+   },
+   {
+    "key": "fps",
+    "type": "number",
+    "default": 0,
+    "legacy": null,
+    "min": 0,
+    "max": 240,
+    "options": null
+   },
+   {
+    "key": "range",
+    "type": "select",
+    "default": "all",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "all",
+     "inout"
+    ]
+   },
+   {
+    "key": "name",
+    "type": "text",
+    "default": "output",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "_write",
+    "type": "action",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "image_writer",
+  "category": "Write",
+  "kind": "writer",
+  "params": [
+   {
+    "key": "format",
+    "type": "select",
+    "default": "tiff16",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "tiff16",
+     "tiff",
+     "tiff32f",
+     "png16",
+     "png",
+     "bmp",
+     "jpeg",
+     "webp"
+    ]
+   },
+   {
+    "key": "quality",
+    "type": "number",
+    "default": 0.95,
+    "legacy": null,
+    "min": 0.1,
+    "max": 1,
+    "options": null
+   },
+   {
+    "key": "range",
+    "type": "select",
+    "default": "current",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "current",
+     "all",
+     "inout"
+    ]
+   },
+   {
+    "key": "name",
+    "type": "text",
+    "default": "frame",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "_write",
+    "type": "action",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "single_selector",
+  "category": "Select Frames",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "frame",
+    "type": "frame",
+    "default": 0,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "range_selector",
+  "category": "Select Frames",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "start",
+    "type": "frame",
+    "default": 0,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "end",
+    "type": "frame",
+    "default": -1,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "step",
+    "type": "int",
+    "default": 1,
+    "legacy": null,
+    "min": 1,
+    "max": 1000,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "sparse_selector",
+  "category": "Select Frames",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "frames",
+    "type": "text",
+    "default": "0",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "_add",
+    "type": "action",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "remove_duplicates",
+  "category": "Select Frames",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "threshold",
+    "type": "number",
+    "default": 0.5,
+    "legacy": null,
+    "min": 0,
+    "max": 50,
+    "options": null
+   },
+   {
+    "key": "roi",
+    "type": "rect",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "iframes_selector",
+  "category": "Select Frames",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "keepI",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "keepP",
+    "type": "bool",
+    "default": false,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "keepB",
+    "type": "bool",
+    "default": false,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "demultiplexer",
+  "category": "Select Frames",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "reference",
+    "type": "frame",
+    "default": 0,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "threshold",
+    "type": "number",
+    "default": 75,
+    "legacy": null,
+    "min": 0,
+    "max": 100,
+    "options": null
+   },
+   {
+    "key": "roi",
+    "type": "rect",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "motion_detection",
+  "category": "Select Frames",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "roi",
+    "type": "rect",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "threshold",
+    "type": "number",
+    "default": 20,
+    "legacy": null,
+    "min": 1,
+    "max": 128,
+    "options": null
+   },
+   {
+    "key": "minArea",
+    "type": "number",
+    "default": 0.5,
+    "legacy": null,
+    "min": 0,
+    "max": 100,
+    "options": null
+   },
+   {
+    "key": "mode",
+    "type": "select",
+    "default": "motion",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "motion",
+     "still"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "deinterlace",
+  "category": "Deinterlacing",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "field",
+    "type": "select",
+    "default": "top",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "top",
+     "bottom"
+    ]
+   },
+   {
+    "key": "method",
+    "type": "select",
+    "default": "linear",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "linear",
+     "duplicate",
+     "blend",
+     "bob"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "line_doubling",
+  "category": "Deinterlacing",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "field",
+    "type": "select",
+    "default": "top",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "top",
+     "bottom"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "field_separation",
+  "category": "Deinterlacing",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "mode",
+    "type": "select",
+    "default": "stack",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "stack",
+     "sequence"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "field_shift",
+  "category": "Deinterlacing",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "field",
+    "type": "select",
+    "default": "bottom",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "top",
+     "bottom"
+    ]
+   },
+   {
+    "key": "dx",
+    "type": "int",
+    "default": 0,
+    "legacy": null,
+    "min": -64,
+    "max": 64,
+    "options": null
+   },
+   {
+    "key": "dy",
+    "type": "int",
+    "default": 0,
+    "legacy": null,
+    "min": -8,
+    "max": 8,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "interleave",
+  "category": "Deinterlacing",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "first",
+    "type": "select",
+    "default": "top",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "top",
+     "bottom"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "crop",
+  "category": "Edit",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "rect",
+    "type": "rect",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "resize",
+  "category": "Edit",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "mode",
+    "type": "select",
+    "default": "scale",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "scale",
+     "size"
+    ]
+   },
+   {
+    "key": "scale",
+    "type": "number",
+    "default": 200,
+    "legacy": null,
+    "min": 1,
+    "max": 1600,
+    "options": null
+   },
+   {
+    "key": "width",
+    "type": "int",
+    "default": 1280,
+    "legacy": null,
+    "min": 1,
+    "max": 16384,
+    "options": null
+   },
+   {
+    "key": "height",
+    "type": "int",
+    "default": 720,
+    "legacy": null,
+    "min": 1,
+    "max": 16384,
+    "options": null
+   },
+   {
+    "key": "keepAspect",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "interp",
+    "type": "select",
+    "default": "bicubic",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "nearest",
+     "bilinear",
+     "bicubic",
+     "lanczos"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "rotate",
+  "category": "Edit",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "angle",
+    "type": "number",
+    "default": 0,
+    "legacy": null,
+    "min": -180,
+    "max": 180,
+    "options": null
+   },
+   {
+    "key": "interp",
+    "type": "select",
+    "default": "bicubic",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "nearest",
+     "bilinear",
+     "bicubic"
+    ]
+   },
+   {
+    "key": "expand",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "background",
+    "type": "color",
+    "default": "#000000",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "flip",
+  "category": "Edit",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "horizontal",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "vertical",
+    "type": "bool",
+    "default": false,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "correct_perspective",
+  "category": "Edit",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "points",
+    "type": "points",
+    "default": [],
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "outWidth",
+    "type": "int",
+    "default": 0,
+    "legacy": null,
+    "min": 0,
+    "max": 8192,
+    "options": null
+   },
+   {
+    "key": "outHeight",
+    "type": "int",
+    "default": 0,
+    "legacy": null,
+    "min": 0,
+    "max": 8192,
+    "options": null
+   },
+   {
+    "key": "interp",
+    "type": "select",
+    "default": "bicubic",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "nearest",
+     "bilinear",
+     "bicubic"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "lens_distortion",
+  "category": "Edit",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "k1",
+    "type": "number",
+    "default": 0,
+    "legacy": null,
+    "min": -1,
+    "max": 1,
+    "options": null
+   },
+   {
+    "key": "k2",
+    "type": "number",
+    "default": 0,
+    "legacy": null,
+    "min": -1,
+    "max": 1,
+    "options": null
+   },
+   {
+    "key": "cx",
+    "type": "number",
+    "default": 0.5,
+    "legacy": null,
+    "min": 0,
+    "max": 1,
+    "options": null
+   },
+   {
+    "key": "cy",
+    "type": "number",
+    "default": 0.5,
+    "legacy": null,
+    "min": 0,
+    "max": 1,
+    "options": null
+   },
+   {
+    "key": "zoom",
+    "type": "number",
+    "default": 1,
+    "legacy": null,
+    "min": 0.2,
+    "max": 3,
+    "options": null
+   },
+   {
+    "key": "interp",
+    "type": "select",
+    "default": "bicubic",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "nearest",
+     "bilinear",
+     "bicubic"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "aspect_ratio",
+  "category": "Edit",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "mode",
+    "type": "select",
+    "default": "source",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "source",
+     "custom",
+     "pal",
+     "ntsc",
+     "half"
+    ]
+   },
+   {
+    "key": "par",
+    "type": "number",
+    "default": 1,
+    "legacy": null,
+    "min": 0.25,
+    "max": 4,
+    "options": null
+   },
+   {
+    "key": "direction",
+    "type": "select",
+    "default": "width",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "width",
+     "height"
+    ]
+   },
+   {
+    "key": "interp",
+    "type": "select",
+    "default": "bicubic",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "nearest",
+     "bilinear",
+     "bicubic",
+     "lanczos"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "grayscale",
+  "category": "Channels",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "method",
+    "type": "select",
+    "default": "bt601",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "bt601",
+     "bt709",
+     "average",
+     "lightness",
+     "max",
+     "min"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "color_conversion",
+  "category": "Channels",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "space",
+    "type": "select",
+    "default": "ycbcr601",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "ycbcr601",
+     "ycbcr709",
+     "hsv",
+     "hsl",
+     "lab",
+     "cmy",
+     "xyz"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "color_switch",
+  "category": "Channels",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "r",
+    "type": "select",
+    "default": "b",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "r",
+     "g",
+     "b",
+     "zero",
+     "full"
+    ]
+   },
+   {
+    "key": "g",
+    "type": "select",
+    "default": "g",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "r",
+     "g",
+     "b",
+     "zero",
+     "full"
+    ]
+   },
+   {
+    "key": "b",
+    "type": "select",
+    "default": "r",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "r",
+     "g",
+     "b",
+     "zero",
+     "full"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "extract_channel",
+  "category": "Channels",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "channel",
+    "type": "select",
+    "default": "y",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "r",
+     "g",
+     "b",
+     "y",
+     "cb",
+     "cr",
+     "h",
+     "s",
+     "v",
+     "l",
+     "a",
+     "bb",
+     "c",
+     "m",
+     "ye",
+     "k"
+    ]
+   },
+   {
+    "key": "stretch",
+    "type": "bool",
+    "default": false,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "enable_channels",
+  "category": "Channels",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "r",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "g",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "b",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "replace_channel",
+  "category": "Channels",
+  "kind": "link",
+  "params": [
+   {
+    "key": "target",
+    "type": "select",
+    "default": "r",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "r",
+     "g",
+     "b"
+    ]
+   },
+   {
+    "key": "source",
+    "type": "chain",
+    "default": "",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "sourceChannel",
+    "type": "select",
+    "default": "y",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "r",
+     "g",
+     "b",
+     "y"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "levels",
+  "category": "Adjust",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "channel",
+    "type": "select",
+    "default": "all",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "all",
+     "r",
+     "g",
+     "b"
+    ]
+   },
+   {
+    "key": "inBlack",
+    "type": "number",
+    "default": 0,
+    "legacy": null,
+    "min": 0,
+    "max": 255,
+    "options": null
+   },
+   {
+    "key": "inWhite",
+    "type": "number",
+    "default": 255,
+    "legacy": null,
+    "min": 0,
+    "max": 255,
+    "options": null
+   },
+   {
+    "key": "gamma",
+    "type": "number",
+    "default": 1,
+    "legacy": null,
+    "min": 0.1,
+    "max": 10,
+    "options": null
+   },
+   {
+    "key": "outBlack",
+    "type": "number",
+    "default": 0,
+    "legacy": null,
+    "min": 0,
+    "max": 255,
+    "options": null
+   },
+   {
+    "key": "outWhite",
+    "type": "number",
+    "default": 255,
+    "legacy": null,
+    "min": 0,
+    "max": 255,
+    "options": null
+   },
+   {
+    "key": "_auto",
+    "type": "action",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "curves",
+  "category": "Adjust",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "channel",
+    "type": "select",
+    "default": "all",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "all",
+     "r",
+     "g",
+     "b"
+    ]
+   },
+   {
+    "key": "curve",
+    "type": "curve",
+    "default": [
+     {
+      "x": 0,
+      "y": 0
+     },
+     {
+      "x": 255,
+      "y": 255
+     }
+    ],
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "brightness_contrast",
+  "category": "Adjust",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "brightness",
+    "type": "number",
+    "default": 0,
+    "legacy": null,
+    "min": -255,
+    "max": 255,
+    "options": null
+   },
+   {
+    "key": "contrast",
+    "type": "number",
+    "default": 0,
+    "legacy": null,
+    "min": -100,
+    "max": 100,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "exposure",
+  "category": "Adjust",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "exposure",
+    "type": "number",
+    "default": 0,
+    "legacy": null,
+    "min": -5,
+    "max": 5,
+    "options": null
+   },
+   {
+    "key": "gamma",
+    "type": "number",
+    "default": 1,
+    "legacy": null,
+    "min": 0.1,
+    "max": 5,
+    "options": null
+   },
+   {
+    "key": "offset",
+    "type": "number",
+    "default": 0,
+    "legacy": null,
+    "min": -128,
+    "max": 128,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "auto_contrast",
+  "category": "Adjust",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "clipLow",
+    "type": "number",
+    "default": 0.5,
+    "legacy": null,
+    "min": 0,
+    "max": 20,
+    "options": null
+   },
+   {
+    "key": "clipHigh",
+    "type": "number",
+    "default": 0.5,
+    "legacy": null,
+    "min": 0,
+    "max": 20,
+    "options": null
+   },
+   {
+    "key": "linked",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "histogram_equalization",
+  "category": "Adjust",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "mode",
+    "type": "select",
+    "default": "clahe",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "global",
+     "clahe"
+    ]
+   },
+   {
+    "key": "tiles",
+    "type": "int",
+    "default": 8,
+    "legacy": null,
+    "min": 2,
+    "max": 32,
+    "options": null
+   },
+   {
+    "key": "clip",
+    "type": "number",
+    "default": 3,
+    "legacy": null,
+    "min": 1,
+    "max": 20,
+    "options": null
+   },
+   {
+    "key": "target",
+    "type": "select",
+    "default": "luma",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "luma",
+     "rgb"
+    ]
+   },
+   {
+    "key": "amount",
+    "type": "number",
+    "default": 1,
+    "legacy": null,
+    "min": 0,
+    "max": 1,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "white_balance",
+  "category": "Adjust",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "mode",
+    "type": "select",
+    "default": "grayworld",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "manual",
+     "grayworld",
+     "whitepatch",
+     "point"
+    ]
+   },
+   {
+    "key": "r",
+    "type": "number",
+    "default": 1,
+    "legacy": null,
+    "min": 0,
+    "max": 4,
+    "options": null
+   },
+   {
+    "key": "g",
+    "type": "number",
+    "default": 1,
+    "legacy": null,
+    "min": 0,
+    "max": 4,
+    "options": null
+   },
+   {
+    "key": "b",
+    "type": "number",
+    "default": 1,
+    "legacy": null,
+    "min": 0,
+    "max": 4,
+    "options": null
+   },
+   {
+    "key": "point",
+    "type": "point",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "radius",
+    "type": "int",
+    "default": 3,
+    "legacy": null,
+    "min": 0,
+    "max": 20,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "hue_saturation",
+  "category": "Adjust",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "hue",
+    "type": "number",
+    "default": 0,
+    "legacy": null,
+    "min": -180,
+    "max": 180,
+    "options": null
+   },
+   {
+    "key": "saturation",
+    "type": "number",
+    "default": 0,
+    "legacy": null,
+    "min": -100,
+    "max": 100,
+    "options": null
+   },
+   {
+    "key": "lightness",
+    "type": "number",
+    "default": 0,
+    "legacy": null,
+    "min": -100,
+    "max": 100,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "negative",
+  "category": "Adjust",
+  "kind": "filter",
+  "params": []
+ },
+ {
+  "id": "threshold",
+  "category": "Adjust",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "level",
+    "type": "number",
+    "default": 128,
+    "legacy": null,
+    "min": 0,
+    "max": 255,
+    "options": null
+   },
+   {
+    "key": "mode",
+    "type": "select",
+    "default": "luma",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "luma",
+     "rgb"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "fourier",
+  "category": "Extract",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "mode",
+    "type": "select",
+    "default": "magnitude",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "magnitude",
+     "phase"
+    ]
+   },
+   {
+    "key": "log",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "channel",
+    "type": "select",
+    "default": "y",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "y",
+     "r",
+     "g",
+     "b"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "fourier_filter",
+  "category": "Extract",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "view",
+    "type": "select",
+    "default": "spectrum",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "filtered",
+     "spectrum"
+    ]
+   },
+   {
+    "key": "filter",
+    "type": "select",
+    "default": "notch",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "notch",
+     "lowpass",
+     "highpass"
+    ]
+   },
+   {
+    "key": "points",
+    "type": "points",
+    "default": [],
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "radius",
+    "type": "number",
+    "default": 8,
+    "legacy": null,
+    "min": 1,
+    "max": 64,
+    "options": null
+   },
+   {
+    "key": "symmetric",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "cutoff",
+    "type": "number",
+    "default": 0.1,
+    "legacy": null,
+    "min": 0.005,
+    "max": 0.5,
+    "options": null
+   },
+   {
+    "key": "smooth",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "gradient",
+  "category": "Extract",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "operator",
+    "type": "select",
+    "default": "sobel",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "sobel",
+     "prewitt",
+     "scharr",
+     "laplacian"
+    ]
+   },
+   {
+    "key": "output",
+    "type": "select",
+    "default": "magnitude",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "magnitude",
+     "x",
+     "y",
+     "direction"
+    ]
+   },
+   {
+    "key": "gain",
+    "type": "number",
+    "default": 1,
+    "legacy": null,
+    "min": 0.1,
+    "max": 20,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "frame_difference",
+  "category": "Extract",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "offset",
+    "type": "int",
+    "default": 1,
+    "legacy": null,
+    "min": 1,
+    "max": 100,
+    "options": null
+   },
+   {
+    "key": "gain",
+    "type": "number",
+    "default": 4,
+    "legacy": null,
+    "min": 1,
+    "max": 20,
+    "options": null
+   },
+   {
+    "key": "mode",
+    "type": "select",
+    "default": "abs",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "abs",
+     "signed"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "bit_plane",
+  "category": "Extract",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "channel",
+    "type": "select",
+    "default": "y",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "r",
+     "g",
+     "b",
+     "y"
+    ]
+   },
+   {
+    "key": "bit",
+    "type": "int",
+    "default": 0,
+    "legacy": null,
+    "min": 0,
+    "max": 7,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "compare_original",
+  "category": "Verify",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "mode",
+    "type": "select",
+    "default": "sbs_h",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "sbs_h",
+     "sbs_v",
+     "blend",
+     "wipe_h",
+     "wipe_v",
+     "difference"
+    ]
+   },
+   {
+    "key": "balance",
+    "type": "number",
+    "default": 0.5,
+    "legacy": null,
+    "min": 0,
+    "max": 1,
+    "options": null
+   },
+   {
+    "key": "gain",
+    "type": "number",
+    "default": 1,
+    "legacy": null,
+    "min": 1,
+    "max": 5,
+    "options": null
+   },
+   {
+    "key": "lineColor",
+    "type": "color",
+    "default": "#c0c0c0",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "lineThickness",
+    "type": "int",
+    "default": 0,
+    "legacy": null,
+    "min": 0,
+    "max": 20,
+    "options": null
+   },
+   {
+    "key": "originalFirst",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "ela",
+  "category": "Verify",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "quality",
+    "type": "int",
+    "default": 90,
+    "legacy": null,
+    "min": 50,
+    "max": 100,
+    "options": null
+   },
+   {
+    "key": "chroma",
+    "type": "select",
+    "default": "420",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "420",
+     "444"
+    ]
+   },
+   {
+    "key": "scale",
+    "type": "number",
+    "default": 15,
+    "legacy": null,
+    "min": 1,
+    "max": 60,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "measure_1d",
+  "category": "Measure",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "refLine",
+    "type": "line",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "refLength",
+    "type": "number",
+    "default": 1,
+    "legacy": null,
+    "min": 0.001,
+    "max": 100000,
+    "options": null
+   },
+   {
+    "key": "unit",
+    "type": "text",
+    "default": "m",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "line",
+    "type": "line",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "color",
+    "type": "color",
+    "default": "#ffd400",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "size",
+    "type": "int",
+    "default": 16,
+    "legacy": null,
+    "min": 8,
+    "max": 72,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "measure_2d",
+  "category": "Measure",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "refPoints",
+    "type": "points",
+    "default": [],
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "refWidth",
+    "type": "number",
+    "default": 0.52,
+    "legacy": null,
+    "min": 0.001,
+    "max": 100000,
+    "options": null
+   },
+   {
+    "key": "refHeight",
+    "type": "number",
+    "default": 0.11,
+    "legacy": null,
+    "min": 0.001,
+    "max": 100000,
+    "options": null
+   },
+   {
+    "key": "unit",
+    "type": "text",
+    "default": "m",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "line",
+    "type": "line",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "color",
+    "type": "color",
+    "default": "#00e0ff",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "size",
+    "type": "int",
+    "default": 16,
+    "legacy": null,
+    "min": 8,
+    "max": 72,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "unsharp_mask",
+  "category": "Sharpen",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "radius",
+    "type": "number",
+    "default": 1.5,
+    "legacy": null,
+    "min": 0.3,
+    "max": 20,
+    "options": null
+   },
+   {
+    "key": "amount",
+    "type": "number",
+    "default": 1,
+    "legacy": null,
+    "min": 0,
+    "max": 5,
+    "options": null
+   },
+   {
+    "key": "threshold",
+    "type": "number",
+    "default": 0,
+    "legacy": null,
+    "min": 0,
+    "max": 50,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "laplacian_sharpening",
+  "category": "Sharpen",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "amount",
+    "type": "number",
+    "default": 1,
+    "legacy": null,
+    "min": 0,
+    "max": 5,
+    "options": null
+   },
+   {
+    "key": "diagonals",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "high_pass_sharpening",
+  "category": "Sharpen",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "radius",
+    "type": "number",
+    "default": 20,
+    "legacy": null,
+    "min": 2,
+    "max": 100,
+    "options": null
+   },
+   {
+    "key": "amount",
+    "type": "number",
+    "default": 0.5,
+    "legacy": null,
+    "min": 0,
+    "max": 3,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "averaging_filter",
+  "category": "Denoise",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "radius",
+    "type": "int",
+    "default": 1,
+    "legacy": null,
+    "min": 1,
+    "max": 20,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "gaussian_filter",
+  "category": "Denoise",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "sigma",
+    "type": "number",
+    "default": 1,
+    "legacy": null,
+    "min": 0.3,
+    "max": 30,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "median_filter",
+  "category": "Denoise",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "radius",
+    "type": "int",
+    "default": 1,
+    "legacy": null,
+    "min": 1,
+    "max": 7,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "bilateral_filter",
+  "category": "Denoise",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "sigmaS",
+    "type": "number",
+    "default": 2,
+    "legacy": null,
+    "min": 0.5,
+    "max": 8,
+    "options": null
+   },
+   {
+    "key": "sigmaR",
+    "type": "number",
+    "default": 20,
+    "legacy": null,
+    "min": 1,
+    "max": 100,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "nl_means",
+  "category": "Denoise",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "h",
+    "type": "number",
+    "default": 10,
+    "legacy": null,
+    "min": 1,
+    "max": 50,
+    "options": null
+   },
+   {
+    "key": "patch",
+    "type": "int",
+    "default": 1,
+    "legacy": null,
+    "min": 1,
+    "max": 3,
+    "options": null
+   },
+   {
+    "key": "search",
+    "type": "int",
+    "default": 5,
+    "legacy": null,
+    "min": 2,
+    "max": 10,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "wiener_filter",
+  "category": "Denoise",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "radius",
+    "type": "int",
+    "default": 2,
+    "legacy": null,
+    "min": 1,
+    "max": 6,
+    "options": null
+   },
+   {
+    "key": "noise",
+    "type": "number",
+    "default": 0,
+    "legacy": null,
+    "min": 0,
+    "max": 2000,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "deblocking",
+  "category": "Denoise",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "block",
+    "type": "int",
+    "default": 8,
+    "legacy": null,
+    "min": 4,
+    "max": 32,
+    "options": null
+   },
+   {
+    "key": "strength",
+    "type": "number",
+    "default": 0.6,
+    "legacy": null,
+    "min": 0,
+    "max": 1,
+    "options": null
+   },
+   {
+    "key": "threshold",
+    "type": "number",
+    "default": 24,
+    "legacy": null,
+    "min": 1,
+    "max": 80,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "motion_deblurring",
+  "category": "Deblurring",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "line",
+    "type": "line",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "length",
+    "type": "number",
+    "default": 10,
+    "legacy": null,
+    "min": 1,
+    "max": 150,
+    "options": null
+   },
+   {
+    "key": "angle",
+    "type": "number",
+    "default": 0,
+    "legacy": null,
+    "min": -180,
+    "max": 180,
+    "options": null
+   },
+   {
+    "key": "method",
+    "type": "select",
+    "default": "wiener",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "wiener",
+     "rl",
+     "tikhonov"
+    ]
+   },
+   {
+    "key": "noise",
+    "type": "number",
+    "default": 0.01,
+    "legacy": null,
+    "min": 0.0001,
+    "max": 1,
+    "options": null
+   },
+   {
+    "key": "iterations",
+    "type": "int",
+    "default": 25,
+    "legacy": null,
+    "min": 1,
+    "max": 200,
+    "options": null
+   },
+   {
+    "key": "_psf",
+    "type": "psf",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "optical_deblurring",
+  "category": "Deblurring",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "radius",
+    "type": "number",
+    "default": 3,
+    "legacy": null,
+    "min": 0.5,
+    "max": 40,
+    "options": null
+   },
+   {
+    "key": "method",
+    "type": "select",
+    "default": "wiener",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "wiener",
+     "rl",
+     "tikhonov"
+    ]
+   },
+   {
+    "key": "noise",
+    "type": "number",
+    "default": 0.01,
+    "legacy": null,
+    "min": 0.0001,
+    "max": 1,
+    "options": null
+   },
+   {
+    "key": "iterations",
+    "type": "int",
+    "default": 25,
+    "legacy": null,
+    "min": 1,
+    "max": 200,
+    "options": null
+   },
+   {
+    "key": "_psf",
+    "type": "psf",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "gaussian_deblurring",
+  "category": "Deblurring",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "sigma",
+    "type": "number",
+    "default": 1.5,
+    "legacy": null,
+    "min": 0.3,
+    "max": 20,
+    "options": null
+   },
+   {
+    "key": "method",
+    "type": "select",
+    "default": "wiener",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "wiener",
+     "rl",
+     "tikhonov"
+    ]
+   },
+   {
+    "key": "noise",
+    "type": "number",
+    "default": 0.01,
+    "legacy": null,
+    "min": 0.0001,
+    "max": 1,
+    "options": null
+   },
+   {
+    "key": "iterations",
+    "type": "int",
+    "default": 25,
+    "legacy": null,
+    "min": 1,
+    "max": 200,
+    "options": null
+   },
+   {
+    "key": "_psf",
+    "type": "psf",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "nonlinear_deblurring",
+  "category": "Deblurring",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "points",
+    "type": "points",
+    "default": [],
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "noise",
+    "type": "number",
+    "default": 0.01,
+    "legacy": null,
+    "min": 0.0001,
+    "max": 1,
+    "options": null
+   },
+   {
+    "key": "thickness",
+    "type": "int",
+    "default": 1,
+    "legacy": null,
+    "min": 1,
+    "max": 199,
+    "options": null
+   },
+   {
+    "key": "_psf",
+    "type": "psf",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "method",
+    "type": "select",
+    "default": "wiener",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "wiener",
+     "rl",
+     "tikhonov"
+    ]
+   },
+   {
+    "key": "iterations",
+    "type": "int",
+    "default": 25,
+    "legacy": null,
+    "min": 1,
+    "max": 200,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "local_stabilization",
+  "category": "Stabilization",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "roi",
+    "type": "rect",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "reference",
+    "type": "frame",
+    "default": 0,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "search",
+    "type": "int",
+    "default": 32,
+    "legacy": null,
+    "min": 4,
+    "max": 256,
+    "options": null
+   },
+   {
+    "key": "subpixel",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "fill",
+    "type": "select",
+    "default": "black",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "black",
+     "edge"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "global_stabilization",
+  "category": "Stabilization",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "reference",
+    "type": "frame",
+    "default": 0,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "subpixel",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "fill",
+    "type": "select",
+    "default": "black",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "black",
+     "edge"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "frame_averaging",
+  "category": "Integrate",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "mode",
+    "type": "select",
+    "default": "all",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "all",
+     "window"
+    ]
+   },
+   {
+    "key": "window",
+    "type": "int",
+    "default": 5,
+    "legacy": null,
+    "min": 2,
+    "max": 200,
+    "options": null
+   },
+   {
+    "key": "method",
+    "type": "select",
+    "default": "mean",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "mean",
+     "median",
+     "sigma"
+    ]
+   },
+   {
+    "key": "sigma",
+    "type": "number",
+    "default": 2,
+    "legacy": null,
+    "min": 1,
+    "max": 5,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "temporal_smoothing",
+  "category": "Integrate",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "size",
+    "type": "int",
+    "default": 5,
+    "legacy": null,
+    "min": 2,
+    "max": 31,
+    "options": null
+   },
+   {
+    "key": "method",
+    "type": "select",
+    "default": "mean",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "mean",
+     "gaussian",
+     "median"
+    ]
+   },
+   {
+    "key": "protect",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "threshold",
+    "type": "number",
+    "default": 12,
+    "legacy": null,
+    "min": 1,
+    "max": 100,
+    "options": null
+   },
+   {
+    "key": "showMask",
+    "type": "bool",
+    "default": false,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "super_resolution",
+  "category": "Integrate",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "scale",
+    "type": "int",
+    "default": 2,
+    "legacy": null,
+    "min": 2,
+    "max": 4,
+    "options": null
+   },
+   {
+    "key": "roi",
+    "type": "rect",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "maxFrames",
+    "type": "int",
+    "default": 30,
+    "legacy": null,
+    "min": 2,
+    "max": 200,
+    "options": null
+   },
+   {
+    "key": "kernel",
+    "type": "select",
+    "default": "gaussian",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "gaussian",
+     "bilinear"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "add_text",
+  "category": "Presentation",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "text",
+    "type": "text",
+    "default": "Text",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "position",
+    "type": "point",
+    "default": {
+     "x": 20,
+     "y": 20
+    },
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "size",
+    "type": "int",
+    "default": 32,
+    "legacy": null,
+    "min": 6,
+    "max": 300,
+    "options": null
+   },
+   {
+    "key": "font",
+    "type": "select",
+    "default": "sans",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "sans",
+     "serif",
+     "mono"
+    ]
+   },
+   {
+    "key": "bold",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "color",
+    "type": "color",
+    "default": "#ffffff",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "background",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "bgColor",
+    "type": "color",
+    "default": "#000000",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "bgOpacity",
+    "type": "number",
+    "default": 0.6,
+    "legacy": null,
+    "min": 0,
+    "max": 1,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "add_shape",
+  "category": "Presentation",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "shape",
+    "type": "select",
+    "default": "rectangle",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "rectangle",
+     "ellipse",
+     "line",
+     "arrow",
+     "double_arrow"
+    ]
+   },
+   {
+    "key": "thickness",
+    "type": "int",
+    "default": 3,
+    "legacy": null,
+    "min": 0,
+    "max": 50,
+    "options": null
+   },
+   {
+    "key": "borderColor",
+    "type": "color",
+    "default": "#ff2020",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "fill",
+    "type": "bool",
+    "default": false,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "fillColor",
+    "type": "color",
+    "default": "#ff2020",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "fillOpacity",
+    "type": "number",
+    "default": 0.3,
+    "legacy": null,
+    "min": 0,
+    "max": 1,
+    "options": null
+   },
+   {
+    "key": "rect",
+    "type": "rect",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "line",
+    "type": "line",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "from",
+    "type": "frame",
+    "default": 0,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "to",
+    "type": "frame",
+    "default": -1,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "hide_selection",
+  "category": "Presentation",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "rect",
+    "type": "rect",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "shape",
+    "type": "select",
+    "default": "rectangle",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "rectangle",
+     "ellipse"
+    ]
+   },
+   {
+    "key": "mode",
+    "type": "select",
+    "default": "pixelate",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "pixelate",
+     "blur",
+     "fill"
+    ]
+   },
+   {
+    "key": "strength",
+    "type": "int",
+    "default": 16,
+    "legacy": null,
+    "min": 2,
+    "max": 100,
+    "options": null
+   },
+   {
+    "key": "color",
+    "type": "color",
+    "default": "#000000",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "spotlight",
+  "category": "Presentation",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "rect",
+    "type": "rect",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "shape",
+    "type": "select",
+    "default": "ellipse",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "ellipse",
+     "rectangle"
+    ]
+   },
+   {
+    "key": "dim",
+    "type": "number",
+    "default": 0.6,
+    "legacy": null,
+    "min": 0,
+    "max": 1,
+    "options": null
+   },
+   {
+    "key": "feather",
+    "type": "int",
+    "default": 16,
+    "legacy": null,
+    "min": 0,
+    "max": 200,
+    "options": null
+   },
+   {
+    "key": "border",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "borderColor",
+    "type": "color",
+    "default": "#ffd400",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "magnify",
+  "category": "Presentation",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "rect",
+    "type": "rect",
+    "default": null,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "zoom",
+    "type": "number",
+    "default": 2.5,
+    "legacy": null,
+    "min": 1,
+    "max": 10,
+    "options": null
+   },
+   {
+    "key": "position",
+    "type": "select",
+    "default": "tr",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "tl",
+     "tr",
+     "bl",
+     "br"
+    ]
+   },
+   {
+    "key": "interp",
+    "type": "select",
+    "default": "bicubic",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "nearest",
+     "bilinear",
+     "bicubic",
+     "lanczos"
+    ]
+   },
+   {
+    "key": "border",
+    "type": "int",
+    "default": 2,
+    "legacy": null,
+    "min": 0,
+    "max": 20,
+    "options": null
+   },
+   {
+    "key": "borderColor",
+    "type": "color",
+    "default": "#ffd400",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "add_timestamp",
+  "category": "Presentation",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "format",
+    "type": "select",
+    "default": "both",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "both",
+     "frame",
+     "time",
+     "datetime"
+    ]
+   },
+   {
+    "key": "start",
+    "type": "text",
+    "default": "2026-01-01 00:00:00.000",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "position",
+    "type": "select",
+    "default": "bl",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "tl",
+     "tr",
+     "bl",
+     "br"
+    ]
+   },
+   {
+    "key": "size",
+    "type": "int",
+    "default": 20,
+    "legacy": null,
+    "min": 8,
+    "max": 120,
+    "options": null
+   },
+   {
+    "key": "color",
+    "type": "color",
+    "default": "#ffffff",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "background",
+    "type": "bool",
+    "default": true,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "add_logo",
+  "category": "Presentation",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "image",
+    "type": "image",
+    "default": "",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "position",
+    "type": "select",
+    "default": "tr",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "tl",
+     "tr",
+     "bl",
+     "br"
+    ]
+   },
+   {
+    "key": "scale",
+    "type": "number",
+    "default": 20,
+    "legacy": null,
+    "min": 1,
+    "max": 200,
+    "options": null
+   },
+   {
+    "key": "opacity",
+    "type": "number",
+    "default": 0.85,
+    "legacy": null,
+    "min": 0,
+    "max": 1,
+    "options": null
+   },
+   {
+    "key": "margin",
+    "type": "int",
+    "default": 12,
+    "legacy": null,
+    "min": 0,
+    "max": 200,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "add_grid",
+  "category": "Presentation",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "spacing",
+    "type": "int",
+    "default": 50,
+    "legacy": null,
+    "min": 4,
+    "max": 1000,
+    "options": null
+   },
+   {
+    "key": "thickness",
+    "type": "int",
+    "default": 1,
+    "legacy": null,
+    "min": 1,
+    "max": 10,
+    "options": null
+   },
+   {
+    "key": "color",
+    "type": "color",
+    "default": "#00ff66",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "opacity",
+    "type": "number",
+    "default": 0.5,
+    "legacy": null,
+    "min": 0,
+    "max": 1,
+    "options": null
+   },
+   {
+    "key": "labels",
+    "type": "bool",
+    "default": false,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "change_frame_rate",
+  "category": "Presentation",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "fps",
+    "type": "number",
+    "default": 25,
+    "legacy": null,
+    "min": 0.1,
+    "max": 240,
+    "options": null
+   }
+  ]
+ },
+ {
+  "id": "convert_frame_rate",
+  "category": "Presentation",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "fps",
+    "type": "number",
+    "default": 25,
+    "legacy": null,
+    "min": 0.1,
+    "max": 240,
+    "options": null
+   },
+   {
+    "key": "method",
+    "type": "select",
+    "default": "nearest",
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": [
+     "nearest",
+     "blend"
+    ]
+   }
+  ]
+ },
+ {
+  "id": "reverse",
+  "category": "Presentation",
+  "kind": "filter",
+  "params": []
+ },
+ {
+  "id": "freeze_frame",
+  "category": "Presentation",
+  "kind": "filter",
+  "params": [
+   {
+    "key": "frame",
+    "type": "frame",
+    "default": 0,
+    "legacy": null,
+    "min": null,
+    "max": null,
+    "options": null
+   },
+   {
+    "key": "duration",
+    "type": "int",
+    "default": 50,
+    "legacy": null,
+    "min": 1,
+    "max": 100000,
+    "options": null
+   }
+  ]
+ }
+]

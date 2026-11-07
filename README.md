@@ -20,6 +20,12 @@ Portable single-file version: [LUCID-Forensic-Workbench.html](https://dogecoin87
 |---|---|
 | ![Fourier](docs/img/doc_fourier.png) | ![GOP](docs/img/doc_gop.png) |
 
+**Android app (native, no browser):** [`android/`](android/README.md) is a Kotlin/Jetpack Compose port with all
+85 filters on every CPU core, hardware video decoding (MediaCodec) with ClearUFO's own YUV conversion, verified
+lossless exports, PDF reports and `.lfp` project compatibility. Its layouts are designed for the Galaxy Z Fold3
+inner screen, unfolded and in Flex mode. Its engine reproduces this workbench's kernels bit for bit (conformance
+tests). Each push that changes `android/` builds the unsigned APK (GitHub Actions › **Android APK** › Artifacts).
+
 ---
 
 ## Quick start

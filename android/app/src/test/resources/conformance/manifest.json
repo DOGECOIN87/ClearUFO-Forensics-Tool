@@ -1,0 +1,202 @@
+{
+ "input": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "gauss_1_3": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "gauss_4_2": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "box_2": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "median_1": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "median_3": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "bilateral": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "nlmeans": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "wiener": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "deblock": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "resize_up_bicubic": {
+  "w": 97,
+  "h": 73,
+  "c": 4
+ },
+ "resize_down_lanczos": {
+  "w": 29,
+  "h": 22,
+  "c": 4
+ },
+ "resize_up_bilinear": {
+  "w": 80,
+  "h": 60,
+  "c": 4
+ },
+ "rotate_17": {
+  "w": 73,
+  "h": 63,
+  "c": 4
+ },
+ "perspective": {
+  "w": 40,
+  "h": 30,
+  "c": 4
+ },
+ "translate": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "clahe": {
+  "w": 61,
+  "h": 47,
+  "c": 1
+ },
+ "levels": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "curves": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "brightness_contrast": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "exposure": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "deconv_wiener_line": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "deconv_tikhonov_gauss": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "deconv_rl_disk": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "deconv_wiener_path": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "fourier_notch": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "fourier_lowpass": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "spectrum_log": {
+  "w": 61,
+  "h": 47,
+  "c": 1
+ },
+ "spectrum_phase": {
+  "w": 61,
+  "h": 47,
+  "c": 1
+ },
+ "phase_correlate": {
+  "w": 3,
+  "h": 1,
+  "c": 1
+ },
+ "jpeg_q90_420": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "jpeg_q75_444": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "smooth_mean_protect": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "smooth_gauss": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "smooth_median_protect": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "smooth_mean_mask": {
+  "w": 61,
+  "h": 47,
+  "c": 4
+ },
+ "yuv_planes": {
+  "w": 1067,
+  "h": 1,
+  "c": 1
+ },
+ "yuv_709_limited_bicubic_left": {
+  "w": 33,
+  "h": 21,
+  "c": 4
+ },
+ "yuv_601_full_bilinear_center": {
+  "w": 33,
+  "h": 21,
+  "c": 4
+ },
+ "yuv_2020_limited_nearest": {
+  "w": 33,
+  "h": 21,
+  "c": 4
+ }
+}

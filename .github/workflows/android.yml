@@ -1,0 +1,43 @@
+# Builds the native Android app (android/): unit and conformance tests, Fold3 layout screenshots, and the
+# unsigned release APK. Artifacts: ClearUFO-Forensics-unsigned-apk and fold3-screenshots (Actions › run › Artifacts).
+name: Android APK
+
+on:
+  push:
+    paths: ["android/**", ".github/workflows/android.yml"]
+  pull_request:
+    paths: ["android/**", ".github/workflows/android.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Unit, conformance and screenshot tests
+        run: ./gradlew :app:testDebugUnitTest --console=plain
+      - name: Build the unsigned release APK
+        run: ./gradlew :app:assembleRelease --console=plain
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClearUFO-Forensics-unsigned-apk
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fold3-screenshots
+          path: android/app/build/screenshots/
+          if-no-files-found: ignore
