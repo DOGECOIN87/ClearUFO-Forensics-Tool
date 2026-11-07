@@ -46,6 +46,7 @@ class Prefs(ctx: Context) {
     var layout: String get() = sp.getString("layout", "auto")!!; set(v) { sp.edit().putString("layout", v).apply() }
     /** The viewer shows the final output of the chain (true) or the output of the selected filter (false). */
     var viewFinal: Boolean get() = sp.getBoolean("viewFinal", true); set(v) { sp.edit().putBoolean("viewFinal", v).apply() }
+    var linksByFrame: Boolean get() = sp.getBoolean("linksByFrame", false); set(v) { sp.edit().putBoolean("linksByFrame", v).apply() }
 }
 
 class Workbench(app: Application) : AndroidViewModel(app) {
@@ -151,7 +152,19 @@ class Workbench(app: Application) : AndroidViewModel(app) {
 
     private fun updateChain(id: String, fn: (ChainDoc) -> ChainDoc) = mutate { p -> p.copy(chains = p.chains.map { if (it.id == id) fn(it) else it }) }
 
-    fun selectChain(id: String) { chainId = id; filterId = chain?.filters?.lastOrNull()?.id; frame = 0; edit = null; requestRender() }
+    /**
+     * Switches to another chain at the same frame number (as linked chains are aligned), and playback continues if it
+     * was running. Newly opened media start at their first frame.
+     */
+    fun selectChain(id: String, keepFrame: Boolean = true) {
+        if (id == chainId) return
+        val wasPlaying = playing && keepFrame
+        stop()
+        chainId = id; filterId = chain?.filters?.lastOrNull()?.id; edit = null
+        if (!keepFrame) frame = 0
+        requestRender()
+        if (wasPlaying) play()
+    }
     fun selectFilter(id: String?) { filterId = id; edit = null; requestRender() }
     fun seek(i: Int) { val n = render?.info?.frameCount ?: 1; frame = i.coerceIn(0, max(0, n - 1)); requestRender() }
 
@@ -159,11 +172,32 @@ class Workbench(app: Application) : AndroidViewModel(app) {
         val c = chain ?: run { toast("Load an image or a video first (or a Test Pattern)."); return }
         val def = FILTERS[type] ?: return
         if (def.kind == FilterKind.LOADER) { toast("${def.name} starts a new chain: use Open."); return }
-        val f = newFilter(type)
+        val f = newFilter(type).let { linkDefaults(c, def, it) }
         val at = c.filters.indexOfFirst { it.id == filterId }.let { if (it < 0) c.filters.size else it + 1 }
         updateChain(c.id) { it.copy(filters = it.filters.toMutableList().apply { add(at, f) }) }
         filterId = f.id
         requestRender()
+    }
+
+    /**
+     * A new link filter is connected at once: its chain input to the most recently added other chain, a chain list to
+     * every other chain. Chains that use this one are left out (they would form a loop).
+     */
+    private fun linkDefaults(c: ChainDoc, def: FilterDef, f: FilterInstance): FilterInstance {
+        if (def.params.none { it is ChainParam || it is ChainsParam }) return f
+        fun refs(ch: ChainDoc): Set<String> = ch.filters.flatMap { fi -> fi.params.values.flatMap { v -> when (v) { is String -> listOf(v); is List<*> -> v.filterIsInstance<String>(); else -> emptyList() } } }.toSet()
+        // chains that depend on c, directly or through others
+        val users = HashSet<String>(); var grew = true
+        while (grew) { grew = false; for (o in project.chains) if (o.id !in users && o.id != c.id && refs(o).any { it == c.id || it in users }) { users.add(o.id); grew = true } }
+        val others = project.chains.filter { it.id != c.id && it.id !in users }
+        if (others.isEmpty()) { toast("${def.name}: open a second video (or image) to link it with this chain."); return f }
+        var params = f.params
+        for (d in def.params) when (d) {
+            is ChainParam -> params = params + (d.key to others.last().id)
+            is ChainsParam -> params = params + (d.key to others.map { it.id })
+            else -> { }
+        }
+        return f.copy(params = params)
     }
 
     fun removeFilter(id: String) {
@@ -265,10 +299,11 @@ class Workbench(app: Application) : AndroidViewModel(app) {
 
     fun play() {
         val c = chainId ?: return
-        val n = render?.info?.frameCount ?: return
-        if (n <= 1) return
         playing = true
         playJob = viewModelScope.launch(guard) {
+            // the length of what is shown now (the chain may have just changed)
+            val n = (try { engine.streamInfo(c, viewFilterId, showingInput) } catch (e: CancellationException) { throw e } catch (_: Exception) { null })?.frameCount ?: render?.info?.frameCount ?: 0
+            if (n <= 1) { playing = false; return@launch }
             var i = if (frame >= (outPoint ?: n - 1)) (inPoint ?: 0) else frame
             while (isActive && playing) {
                 val t0 = System.nanoTime()
@@ -378,7 +413,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
         val steps = if (kind == "video" && rot != 0 && rot % 90 == 0) listOf(fi, newFilter("rotate").let { it.copy(params = it.params + mapOf("angle" to (if (rot == 270) -90.0 else rot.toDouble()), "interp" to "nearest", "expand" to true)) }) else listOf(fi)
         val c = ChainDoc(uid("c"), f.name.substringBeforeLast('.'), steps)
         mutate { p -> p.copy(chains = p.chains + c, sources = p.sources + (id to refOf(id, kind, listOf(f)))) }
-        selectChain(c.id)
+        selectChain(c.id, keepFrame = false)
         if (steps.size > 1) toast("The video is stored rotated ($rot° metadata): a lossless Rotate step shows it upright. Remove that step to see the frames as stored.")
         hashLater(id, listOf(f))
         if (src.info.vfr != null) toast("Variable frame rate: ${src.info.vfr}")
@@ -391,7 +426,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
             val fi = newFilter("sequence_loader").let { it.copy(params = it.params + ("source" to id)) }
             val c = ChainDoc(uid("c"), files.sortedWith { a, b -> Files.naturalOrder.compare(a.name, b.name) }.first().name.substringBeforeLast('.') + " sequence", listOf(fi))
             mutate { p -> p.copy(chains = p.chains + c, sources = p.sources + (id to refOf(id, "sequence", files, mapOf("fps" to 25.0)))) }
-            selectChain(c.id)
+            selectChain(c.id, keepFrame = false)
         } catch (e: Exception) { toast("Image sequence: ${e.message}") }
     }
 
@@ -401,7 +436,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
         val params = f.params + mapOf("pattern" to pattern, "frames" to if (plate) 60.0 else 1.0, "blur" to if (plate) 9.0 else 0.0, "shake" to if (plate) 4.0 else 0.0, "noise" to if (plate) 10.0 else 3.0)
         val c = ChainDoc(uid("c"), label, listOf(f.copy(params = params)))
         mutate { p -> p.copy(chains = p.chains + c) }
-        selectChain(c.id)
+        selectChain(c.id, keepFrame = false)
     }
 
     /** Loads the logo image of an Add Logo filter as a source. */
@@ -484,10 +519,20 @@ class Workbench(app: Application) : AndroidViewModel(app) {
         saveJob = viewModelScope.launch(Dispatchers.IO + guard) { delay(1200); runCatching { sessionFile.writeText(ProjectJson.write(project)) } }
     }
 
+    /**
+     * Once, for sessions saved by 1.0.2/1.0.3 (where linked chains were aligned by time by default): their link
+     * filters are switched to frame alignment, the default now. Projects opened from files are never changed.
+     */
+    private fun alignLinksByFrame(p: ProjectDoc): ProjectDoc {
+        if (prefs.linksByFrame) return p
+        prefs.linksByFrame = true
+        return p.copy(chains = p.chains.map { c -> c.copy(filters = c.filters.map { f -> if (FILTERS[f.type]?.kind == FilterKind.LINK && f.params["sync"] == "time") f.copy(params = f.params + ("sync" to "frame")) else f }) })
+    }
+
     private suspend fun restoreSession() {
         if (!prefs.autoSave || !sessionFile.exists()) return
         try {
-            val p = ProjectJson.read(withContext(Dispatchers.IO) { sessionFile.readText() })
+            val p = ProjectJson.read(withContext(Dispatchers.IO) { sessionFile.readText() }).let(::alignLinksByFrame)
             if (p.chains.isEmpty()) return
             val missing = reopenSources(p)
             publish(p); dirty = false

@@ -21,7 +21,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 /** A video of `n` deterministic frames, counting how often each frame is decoded. */
-class FakeSource(val n: Int, val w: Int = 48, val h: Int = 32, val fps: Double = 25.0) : SourceProvider {
+class FakeSource(val n: Int, val w: Int = 48, val h: Int = 32, val fps: Double = 25.0, val t0: Double = 0.0) : SourceProvider {
     val decodes = IntArray(n)
     override val info = SourceInfo("src", "video", "fake.mp4", width = w, height = h, frameCount = n, fps = fps)
     override suspend fun getFrame(i: Int, opts: DecodeOptions): Frame {
@@ -30,7 +30,7 @@ class FakeSource(val n: Int, val w: Int = 48, val h: Int = 32, val fps: Double =
         for (k in 0 until w * h) { f.d[k * 4] = (k % w * 4 + r() * 10).toFloat(); f.d[k * 4 + 1] = (k / w * 6 + r() * 10).toFloat(); f.d[k * 4 + 2] = (i * 10 % 256).toFloat() }
         return f
     }
-    override fun meta(i: Int) = FrameMeta(if (i % 5 == 0) 'I' else 'P', i / fps, i % 5 == 0, 1000 + i, i)
+    override fun meta(i: Int) = FrameMeta(if (i % 5 == 0) 'I' else 'P', t0 + i / fps, i % 5 == 0, 1000 + i, i)
 }
 
 class EngineTest {
@@ -123,11 +123,21 @@ class EngineTest {
         for (i in listOf(0, 1, 6, 7, 29)) assertEquals("A frame $i", Math.floor(i / 30.0 * 25 + 1e-6).toInt(), bFrameShown(i))
         e.setProject(listOf(mix("time", 3.0), cb))                       // 3 frames of A = 0.1 s
         assertEquals(Math.floor((12 / 30.0 + 0.1) * 25 + 1e-6).toInt(), bFrameShown(12))
-        e.setProject(listOf(mix("frame", 0.0), cb))                       // browser projects: frame numbers
+        e.setProject(listOf(mix("frame", 0.0), cb))                       // by frame number (as browser projects)
         assertEquals(7, bFrameShown(7))
-        // Timeline: a 50 fps clip appended to a 30 fps chain is resampled (0.2 s → 6 frames), not played 1.67× too fast
-        e.setProject(listOf(ChainDoc("t", "t", listOf(f("video_loader", "source" to "a"), f("timeline", "chains" to listOf("cc")))), ChainDoc("cc", "C", listOf(f("video_loader", "source" to "c")))))
-        assertEquals(36, e.render("t", null, false, 0).info.frameCount)
+        // a new link filter aligns by frame number unless told otherwise
+        e.setProject(listOf(ChainDoc("m", "m", listOf(f("video_loader", "source" to "a"), f("video_mixer", "second" to "cb", "mode" to "sbs_h"))), cb))
+        for (i in listOf(0, 7, 24)) assertEquals("default alignment, A frame $i", i, bFrameShown(i))
+        // files whose timestamps start elsewhere (recorders stamping the device uptime) still start together
+        e.addSource("b", FakeSource(25, fps = 25.0, t0 = 4321.5)); e.setProject(emptyList())
+        e.setProject(listOf(mix("time", 0.0), cb))
+        for (i in listOf(0, 7, 29)) assertEquals("A frame $i, B starting at 4321.5 s", Math.floor(i / 30.0 * 25 + 1e-6).toInt(), bFrameShown(i))
+        assertEquals(0.0, e.streamFor("cb", null).meta(0).pts!!, 0.0)
+        // Timeline: frame by frame by default (30 + 10 frames); resampled, a 50 fps clip appended to a 30 fps chain
+        // takes 0.2 s → 6 frames instead of playing 1.67× too fast
+        fun tl(vararg extra: Pair<String, Any?>) = listOf(ChainDoc("t", "t", listOf(f("video_loader", "source" to "a"), f("timeline", "chains" to listOf("cc"), *extra))), ChainDoc("cc", "C", listOf(f("video_loader", "source" to "c"))))
+        e.setProject(tl()); assertEquals(40, e.render("t", null, false, 0).info.frameCount)
+        e.setProject(tl("sync" to "time")); assertEquals(36, e.render("t", null, false, 0).info.frameCount)
     }
 
     @Test fun errorsNameTheFilter() = runBlocking {

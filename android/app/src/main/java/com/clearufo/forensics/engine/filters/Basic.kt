@@ -41,10 +41,14 @@ private val fileLoader: FilterImpl = { _, p, ctx ->
         p.str("siting", "auto"), p.str("hdr", "none").ifEmpty { "none" }, p.num("hdrPeak", 1000.0))
     val par = src.info.par?.let { if (it.second != 0) it.first.toDouble() / it.second else 1.0 } ?: 1.0
     val fps = if (p.num("fps") > 0 && src.info.kind == "sequence") p.num("fps") else src.info.fps
+    // Times count from the first frame shown: container timestamps often start elsewhere (edit lists, B-frame
+    // offsets, recorders that stamp the device uptime), and linked chains are synchronized on these times, so two
+    // videos start together whatever their files say.
+    val t0 = if (src.info.kind == "sequence" || src.info.frameCount < 1) 0.0 else src.meta(0).pts ?: 0.0
     object : Stream {
         override val info = StreamInfo(src.info.width, src.info.height, src.info.frameCount, fps, par)
         override suspend fun getFrame(i: Int) = src.getFrame(i, opts)
-        override fun meta(i: Int) = if (src.info.kind == "sequence") src.meta(i).copy(pts = i / fps) else src.meta(i)
+        override fun meta(i: Int) = if (src.info.kind == "sequence") src.meta(i).copy(pts = i / fps) else src.meta(i).let { m -> if (m.pts == null || t0 == 0.0) m else m.copy(pts = m.pts - t0) }
     }
 }
 

@@ -53,7 +53,7 @@ class Timing(private val s: Stream) {
     }
 }
 
-/** Frame of `other` shown with frame i of the master chain: by time (default) or by frame number (legacy projects). */
+/** Frame of `other` shown with frame i of the master chain: by frame number (default) or by time. */
 private class Sync(master: Stream, private val other: Stream, private val byTime: Boolean, private val offsetFrames: Int) {
     private val tm = if (byTime) Timing(master) else null
     private val to = if (byTime) Timing(other) else null
@@ -67,7 +67,7 @@ private suspend fun both(a: Stream, i: Int, b: Stream, j: Int): Pair<Frame, Fram
     a.getFrame(i) to fb.await()
 }
 
-private fun byTime(p: Params) = p.str("sync", "time") != "frame"
+private fun byTime(p: Params) = p.str("sync", "frame") == "time"
 
 private val mixer: FilterImpl = { input, p, ctx ->
     val a = needInput(input)
