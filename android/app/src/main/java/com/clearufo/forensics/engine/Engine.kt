@@ -84,7 +84,7 @@ class Engine {
     private val chains: Map<String, ChainDoc> get() = snap.chains
     private class Node(val key: String, val stream: Deferred<Stream>)
     private val nodes = ConcurrentHashMap<String, Node>()
-    val cache = FrameCache((Runtime.getRuntime().maxMemory() * 0.35).toLong(), scope)
+    val cache = FrameCache((Runtime.getRuntime().maxMemory() * 0.25).toLong(), scope)
 
     private val _progress = MutableStateFlow<Map<String, Pair<String, Double>>>(emptyMap())
     val progress: StateFlow<Map<String, Pair<String, Double>>> = _progress

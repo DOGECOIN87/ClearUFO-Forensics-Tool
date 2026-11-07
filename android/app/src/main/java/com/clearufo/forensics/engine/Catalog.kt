@@ -142,12 +142,20 @@ val FILTER_LIST: List<FilterDef> = listOf(
             sel("mode", "Mode", o("blend" to "Blend", "difference" to "Difference", "absdiff" to "Absolute Difference", "sbs_h" to "Side-by-Side Horizontally", "sbs_v" to "Side-by-Side Vertically", "wipe_h" to "Wipe Horizontal", "wipe_v" to "Wipe Vertical", "checker" to "Checkerboard"), "blend"),
             num("balance", "Balance", 0.0, 1.0, 0.5, decimals = 4), num("gain", "Gain", 1.0, 20.0, 1.0, decimals = 1),
             int("offset", "Frame Offset", -1000, 1000, 0, slider = false), int("checker", "Checker Size", 4, 256, 32, show = { mode(it) == "checker" }),
+            sel("sync", "Synchronize", o("time" to "By time (timestamps)", "frame" to "By frame number"), "time", legacy = "frame",
+                help = "By time, each frame is matched with the frame of the other chain shown at the same moment (timestamps), so videos with different or variable frame rates and trimmed ranges stay in step; the offset is in frames of this chain. Projects of the browser version use frame numbers."),
         ), hint = "Hint: use \"Difference\" to highlight changes between two versions of the same video."),
     FilterDef("multiview", "Multiview", "Link", FilterKind.LINK, "Shows several chains at the same time in a grid.",
-        listOf(chains("chains", "Chains"), int("columns", "Columns (0 = auto)", 0, 8, 0), bool("labels", "Show Labels", true), int("border", "Border", 0, 20, 2), color("borderColor", "Border Color", "#202020"))),
+        listOf(chains("chains", "Chains"), int("columns", "Columns (0 = auto)", 0, 8, 0), bool("labels", "Show Labels", true), int("border", "Border", 0, 20, 2), color("borderColor", "Border Color", "#202020"),
+            sel("sync", "Synchronize", o("time" to "By time (timestamps)", "frame" to "By frame number"), "time", legacy = "frame",
+                help = "By time, each frame is matched with the frame of the other chain shown at the same moment (timestamps), so videos with different or variable frame rates and trimmed ranges stay in step; the offset is in frames of this chain. Projects of the browser version use frame numbers."))),
     FilterDef("picture_in_picture", "Picture In Picture", "Link", FilterKind.LINK, "Inserts the output of another chain as an inset.",
-        listOf(chain("inset", "Inset Chain"), num("x", "Position X (%)", 0.0, 100.0, 70.0, decimals = 1), num("y", "Position Y (%)", 0.0, 100.0, 5.0, decimals = 1), num("scale", "Scale (%)", 5.0, 100.0, 25.0, decimals = 1), int("border", "Border", 0, 20, 2), color("borderColor", "Border Color", "#ffffff"), int("offset", "Frame Offset", -1000, 1000, 0, slider = false))),
-    FilterDef("timeline", "Timeline", "Link", FilterKind.LINK, "Concatenates other chains after the current one.", listOf(chains("chains", "Append Chains")),
+        listOf(chain("inset", "Inset Chain"), num("x", "Position X (%)", 0.0, 100.0, 70.0, decimals = 1), num("y", "Position Y (%)", 0.0, 100.0, 5.0, decimals = 1), num("scale", "Scale (%)", 5.0, 100.0, 25.0, decimals = 1), int("border", "Border", 0, 20, 2), color("borderColor", "Border Color", "#ffffff"), int("offset", "Frame Offset", -1000, 1000, 0, slider = false),
+            sel("sync", "Synchronize", o("time" to "By time (timestamps)", "frame" to "By frame number"), "time", legacy = "frame",
+                help = "By time, each frame is matched with the frame of the other chain shown at the same moment (timestamps), so videos with different or variable frame rates and trimmed ranges stay in step; the offset is in frames of this chain. Projects of the browser version use frame numbers."))),
+    FilterDef("timeline", "Timeline", "Link", FilterKind.LINK, "Concatenates other chains after the current one.", listOf(chains("chains", "Append Chains"),
+            sel("sync", "Timing", o("time" to "Resample to this chain's frame rate", "frame" to "Frame by frame"), "time", legacy = "frame",
+                help = "Resampling plays the appended chains at their real speed when their frame rate differs; frame by frame keeps every frame (projects of the browser version).")),
         hint = "Hint: frames of the appended chains are resized to the size of the current chain."),
     // ============================== Write
     FilterDef("video_writer", "Video Writer", "Write", FilterKind.WRITER, "Writes the processed video to file.",
@@ -224,7 +232,9 @@ val FILTER_LIST: List<FilterDef> = listOf(
         listOf(sel("channel", "Channel", o("r" to "Red", "g" to "Green", "b" to "Blue", "y" to "Luma (Y)", "cb" to "Chroma Blue (Cb)", "cr" to "Chroma Red (Cr)", "h" to "Hue", "s" to "Saturation", "v" to "Value", "l" to "Lightness L*", "a" to "a*", "bb" to "b*", "c" to "Cyan", "m" to "Magenta", "ye" to "Yellow", "k" to "Black (K)"), "y"), bool("stretch", "Stretch Values", false)), reference = REF.bt),
     FilterDef("enable_channels", "Enable Channels", "Channels", FilterKind.FILTER, "Enables or disables the single channels.", listOf(bool("r", "Red", true), bool("g", "Green", true), bool("b", "Blue", true))),
     FilterDef("replace_channel", "Replace Channel", "Channels", FilterKind.LINK, "Replaces a channel with a channel of another chain.",
-        listOf(sel("target", "Target Channel", o("r" to "Red", "g" to "Green", "b" to "Blue"), "r"), chain("source", "Source Chain"), sel("sourceChannel", "Source Channel", o("r" to "Red", "g" to "Green", "b" to "Blue", "y" to "Luma"), "y"))),
+        listOf(sel("target", "Target Channel", o("r" to "Red", "g" to "Green", "b" to "Blue"), "r"), chain("source", "Source Chain"), sel("sourceChannel", "Source Channel", o("r" to "Red", "g" to "Green", "b" to "Blue", "y" to "Luma"), "y"),
+            sel("sync", "Synchronize", o("time" to "By time (timestamps)", "frame" to "By frame number"), "time", legacy = "frame",
+                help = "By time, each frame is matched with the frame of the other chain shown at the same moment (timestamps), so videos with different or variable frame rates and trimmed ranges stay in step; the offset is in frames of this chain. Projects of the browser version use frame numbers."))),
     // ============================== Adjust
     FilterDef("levels", "Levels", "Adjust", FilterKind.FILTER, "Adjusts the input and output levels of the image.",
         listOf(sel("channel", "Channel", o("all" to "All", "r" to "Red", "g" to "Green", "b" to "Blue"), "all"), num("inBlack", "Input Black", 0.0, 255.0, 0.0, decimals = 1), num("inWhite", "Input White", 0.0, 255.0, 255.0, decimals = 1),
@@ -357,6 +367,9 @@ val FILTER_LIST: List<FilterDef> = listOf(
 )
 
 val FILTERS: Map<String, FilterDef> = FILTER_LIST.associateBy { it.id }
+
+/** Parameters of the Android edition that the browser catalog does not have (projects stay interchangeable). */
+val ANDROID_ONLY_PARAMS = setOf("video_mixer.sync", "multiview.sync", "picture_in_picture.sync", "timeline.sync", "replace_channel.sync")
 
 fun filtersInCategory(cat: String) = FILTER_LIST.filter { it.category == cat }
 

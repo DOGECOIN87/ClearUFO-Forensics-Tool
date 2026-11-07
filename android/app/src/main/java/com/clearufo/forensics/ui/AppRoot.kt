@@ -434,7 +434,7 @@ private fun SettingsDialog(wb: Workbench, onDismiss: () -> Unit) {
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
         text = { Column(Modifier.verticalScroll(rememberScrollState())) {
             choice("Processing threads (this device has ${Par.available} cores)", listOf(0 to "Auto") + (1..8).map { it to "$it" }, threads) { threads = it }
-            choice("Frame cache (memory available to the app: ${Runtime.getRuntime().maxMemory() / 1048576} MB)", listOf(0 to "Auto (35%)", 256 to "256 MB", 512 to "512 MB", 1024 to "1 GB", 2048 to "2 GB"), cache) { cache = it }
+            choice("Frame cache (memory available to the app: ${Runtime.getRuntime().maxMemory() / 1048576} MB)", listOf(0 to "Auto (25%)", 256 to "256 MB", 512 to "512 MB", 1024 to "1 GB", 2048 to "2 GB"), cache) { cache = it }
             choice("Theme", listOf("midnight" to "Night", "classic" to "Daylight", "system" to "System"), theme) { theme = it }
             choice("Layout", listOf("auto" to "Automatic (fold aware)", "phone" to "Phone", "dual" to "Two panes"), layout) { layout = it }
             toggle("Lossless exports only", lossless) { lossless = it }

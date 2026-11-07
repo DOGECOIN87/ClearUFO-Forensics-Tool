@@ -89,19 +89,26 @@ class Workbench(app: Application) : AndroidViewModel(app) {
     private var undoVersion by mutableStateOf(0)
     val historyVersion get() = undoVersion
 
+    /** No background task may take the app down: unexpected errors (out of memory included) become a message. */
+    private val guard = CoroutineExceptionHandler { _, t ->
+        if (t is OutOfMemoryError) engine.clearCache()
+        playing = false
+        toast(if (t is OutOfMemoryError) "Not enough memory: the processing cache was cleared. Reduce the resolution (Resize) or the number of linked chains." else "Error: ${t.message ?: t.javaClass.simpleName}")
+    }
+
     private val renderTrigger = MutableStateFlow(0L)
     private var playJob: Job? = null
     private val sessionFile = File(app.filesDir, "session.lfp")
 
     init {
         applyPrefs()
-        viewModelScope.launch { renderTrigger.collectLatest { doRender() } }
-        viewModelScope.launch { restoreSession() }
+        viewModelScope.launch(guard) { renderTrigger.collectLatest { doRender() } }
+        viewModelScope.launch(guard) { restoreSession() }
     }
 
     fun applyPrefs() {
         Par.threads = if (prefs.threads > 0) prefs.threads else Par.available
-        engine.cache.limit = if (prefs.cacheMB > 0) prefs.cacheMB * 1048576L else (Runtime.getRuntime().maxMemory() * 0.35).toLong()
+        engine.cache.limit = if (prefs.cacheMB > 0) prefs.cacheMB * 1048576L else (Runtime.getRuntime().maxMemory() * 0.25).toLong()
     }
 
     fun toast(m: String) { messages.add(m) }
@@ -256,7 +263,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
         val n = render?.info?.frameCount ?: return
         if (n <= 1) return
         playing = true
-        playJob = viewModelScope.launch {
+        playJob = viewModelScope.launch(guard) {
             var i = if (frame >= (outPoint ?: n - 1)) (inPoint ?: 0) else frame
             while (isActive && playing) {
                 val t0 = System.nanoTime()
@@ -269,6 +276,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
                     catch (e: CancellationException) { throw e }
                     catch (e: Cancelled) { continue }
                     catch (e: Exception) { renderError = (e.message ?: e.javaClass.simpleName) to (e as? FilterException)?.filterId; break }
+                    catch (e: OutOfMemoryError) { engine.clearCache(); renderError = "Not enough memory to play this chain: reduce the resolution (Resize) or the number of linked chains." to null; break }
                 renderError = null
                 val bmp = withContext(Dispatchers.Default) { displayBitmap(r.frame) }
                 render = RenderState(bmp, r.frame, r.info, r.meta, r.index, r.ms, si); frame = r.index
@@ -301,7 +309,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
     fun openUris(uris: List<Uri>, sequence: Boolean = false) {
         if (uris.isEmpty()) return
         uris.forEach(::persist)
-        viewModelScope.launch {
+        viewModelScope.launch(guard) {
             val files = withContext(Dispatchers.IO) { uris.map { Files.describe(ctx, it) } }
             if (sequence && files.size > 1) { openSequence(files); return@launch }
             for (f in files) {
@@ -327,7 +335,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
             }
             engine.addSource(id, src)
             sourceInfos[id] = src.info
-            if (!src.info.frameTypesReady) viewModelScope.launch {
+            if (!src.info.frameTypesReady) viewModelScope.launch(guard) {
                 runCatching { src.analyze { task("analyze:$id", "Analyzing frame types", it) } }
                 task("analyze:$id", "", 1.0, true)
                 sourceInfos[id] = src.info; engine.clearCache(); requestRender()
@@ -338,7 +346,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
 
     private fun hashLater(id: String, files: List<EvidenceFile>) {
         if (!prefs.hashOnLoad) return
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO + guard) {
             try {
                 val h = if (files.size == 1) Files.hash(ctx, files[0].uri, { task("hash:$id", "Hashing ${files[0].name}", it) }) else null
                 h?.let { hh -> withContext(Dispatchers.Main) {
@@ -392,7 +400,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
     /** Loads the logo image of an Add Logo filter as a source. */
     fun setImageParam(filterId: String, key: String, uri: Uri) {
         persist(uri)
-        viewModelScope.launch {
+        viewModelScope.launch(guard) {
             try {
                 val f = withContext(Dispatchers.IO) { Files.describe(ctx, uri) }
                 val id = uid("s")
@@ -406,7 +414,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
     /** Points a loader at another file (relink missing media). */
     fun relink(sourceId: String, uris: List<Uri>) {
         uris.forEach(::persist)
-        viewModelScope.launch {
+        viewModelScope.launch(guard) {
             try {
                 val files = withContext(Dispatchers.IO) { uris.map { Files.describe(ctx, it) } }
                 val ref = project.sources[sourceId]
@@ -436,7 +444,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
     }
 
     fun openProject(uri: Uri) {
-        viewModelScope.launch {
+        viewModelScope.launch(guard) {
             try {
                 persist(uri)
                 val text = withContext(Dispatchers.IO) { String(Files.readAll(ctx, uri)) }
@@ -452,7 +460,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
     }
 
     fun saveProject(uri: Uri) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO + guard) {
             try {
                 ctx.contentResolver.openOutputStream(uri, "wt")?.use { it.write(ProjectJson.write(project).toByteArray()) } ?: throw IllegalStateException("cannot write")
                 projectUri = uri; withContext(Dispatchers.Main) { dirty = false }
@@ -466,7 +474,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
     private fun scheduleSave() {
         if (!prefs.autoSave) return
         saveJob?.cancel()
-        saveJob = viewModelScope.launch(Dispatchers.IO) { delay(1200); runCatching { sessionFile.writeText(ProjectJson.write(project)) } }
+        saveJob = viewModelScope.launch(Dispatchers.IO + guard) { delay(1200); runCatching { sessionFile.writeText(ProjectJson.write(project)) } }
     }
 
     private suspend fun restoreSession() {
@@ -488,7 +496,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
     fun export(uri: Uri, name: String, format: String, range: String, fps: Double, quality: Double, chainId: String? = this.chainId, filterId: String? = null) {
         val c = chainId ?: return
         exportResult = null; exportProgress = 0.0
-        exportJob = viewModelScope.launch {
+        exportJob = viewModelScope.launch(guard) {
             try {
                 val s = engine.streamFor(c, filterId ?: project.chains.firstOrNull { it.id == c }?.filters?.lastOrNull()?.id)
                 val n = s.info.frameCount
@@ -504,7 +512,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
 
     fun report(uri: Uri) {
         val c = chain ?: return
-        viewModelScope.launch {
+        viewModelScope.launch(guard) {
             task("report", "Writing report", 0.5)
             try {
                 val r = render
@@ -518,7 +526,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
 
     fun hashFile(uri: Uri, onDone: (EvidenceFile, Hashes) -> Unit) {
         persist(uri)
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO + guard) {
             try {
                 val f = Files.describe(ctx, uri)
                 val h = Files.hash(ctx, uri, { task("hashfile", "Hashing ${f.name}", it) })
@@ -530,7 +538,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
     /** Auto Levels (Levels filter action): input black/white from the 0.5% / 99.5% percentiles of the filter input. */
     fun autoLevels(filterId: String) {
         val c = chain ?: return
-        viewModelScope.launch {
+        viewModelScope.launch(guard) {
             try {
                 val r = engine.render(c.id, filterId, true, frame)
                 val Y = luma(r.frame); val h = com.clearufo.forensics.engine.kernels.histogramPlane(Y)

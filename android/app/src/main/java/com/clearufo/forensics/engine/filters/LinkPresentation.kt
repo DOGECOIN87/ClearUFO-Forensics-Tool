@@ -13,6 +13,8 @@ import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 // Filters combining several chains (link.ts) and annotation / redaction / measurement filters (presentation.ts).
 
@@ -28,6 +30,45 @@ private fun letterbox(f: Frame, w: Int, h: Int): Frame {
     return out
 }
 
+/**
+ * Presentation times of a stream's frames (timestamps of the source, carried through frame selections; the nominal
+ * frame rate where there are none). Linked chains are synchronized on these, so videos with different frame rates,
+ * variable frame rates or trimmed ranges stay in step.
+ */
+class Timing(private val s: Stream) {
+    val n = max(1, s.info.frameCount)
+    private val fps = if (s.info.fps > 0) s.info.fps else 25.0
+    private val t = DoubleArray(n) { i -> s.meta(i).pts ?: (i / fps) }
+    private val monotonic = (1 until n).all { t[it] >= t[it - 1] }
+    fun time(i: Int) = t[max(0, min(n - 1, i))]
+    val start get() = t[0]
+    val end get() = t[n - 1] + 1 / fps
+    /** The frame on screen at time x: the last one presented at or before it (sample and hold). */
+    fun frameAt(x: Double): Int {
+        if (!monotonic) { var best = 0; var d = Double.MAX_VALUE; for (k in 0 until n) { val e = kotlin.math.abs(t[k] - x); if (e < d) { d = e; best = k } }; return best }
+        var lo = 0; var hi = n - 1
+        if (x < t[0] - 1e-6) return 0
+        while (lo < hi) { val mid = (lo + hi + 1) ushr 1; if (t[mid] <= x + 1e-6) lo = mid else hi = mid - 1 }
+        return lo
+    }
+}
+
+/** Frame of `other` shown with frame i of the master chain: by time (default) or by frame number (legacy projects). */
+private class Sync(master: Stream, private val other: Stream, private val byTime: Boolean, private val offsetFrames: Int) {
+    private val tm = if (byTime) Timing(master) else null
+    private val to = if (byTime) Timing(other) else null
+    private val dt = offsetFrames / (if (master.info.fps > 0) master.info.fps else 25.0)
+    fun map(i: Int): Int = if (tm == null) i + offsetFrames else to!!.frameAt(tm.time(i) + dt)
+}
+
+/** Fetches the two inputs of a link at the same time (their decoders and filters work in parallel). */
+private suspend fun both(a: Stream, i: Int, b: Stream, j: Int): Pair<Frame, Frame> = coroutineScope {
+    val fb = async { at(b, j) }
+    a.getFrame(i) to fb.await()
+}
+
+private fun byTime(p: Params) = p.str("sync", "time") != "frame"
+
 private val mixer: FilterImpl = { input, p, ctx ->
     val a = needInput(input)
     val second = p.str("second")
@@ -35,12 +76,14 @@ private val mixer: FilterImpl = { input, p, ctx ->
     val b = ctx.chainStream(second)
     val w = a.info.width; val h = a.info.height; val mode = p.str("mode")
     val ow = if (mode == "sbs_h") w * 2 else w; val oh = if (mode == "sbs_v") h * 2 else h
-    val bal = p.num("balance"); val g = p.num("gain"); val off = p.int("offset"); val cs = max(1, p.int("checker"))
+    val bal = p.num("balance"); val g = p.num("gain"); val cs = max(1, p.int("checker"))
+    val sync = Sync(a, b, byTime(p), p.int("offset"))
     object : Stream {
         override val info = a.info.copy(width = ow, height = oh)
         override fun meta(i: Int) = a.meta(i)
         override suspend fun getFrame(i: Int): Frame {
-            val fa = a.getFrame(i); val fb = fit(at(b, i + off), w, h)
+            val (fa, fb0) = both(a, i, b, sync.map(i))
+            val fb = fit(fb0, w, h)
             val out = Frame.alloc(ow, oh, true)
             if (mode == "sbs_h" || mode == "sbs_v") { putRows(out, fa, 0, 0); if (mode == "sbs_h") putRows(out, fb, w, 0) else putRows(out, fb, 0, h); return out }
             Par.forRows(h) { y0, y1 -> for (y in y0 until y1) for (x in 0 until w) {
@@ -72,15 +115,19 @@ private val multiview: FilterImpl = { input, p, ctx ->
     val W = a.info.width; val H = a.info.height; val B = max(0, p.int("border"))
     val ow = cols * W + (cols + 1) * B; val oh = rows * H + (rows + 1) * B
     val bc = parseColor(p.str("borderColor"))
-    val n = all.maxOf { it.info.frameCount }
+    val timed = byTime(p)
+    val syncs = all.map { Sync(a, it, timed, 0) }
+    // by time the current chain is the clock; by frame number the longest chain sets the length
+    val n = if (timed) a.info.frameCount else all.maxOf { it.info.frameCount }
     val labels = p.bool("labels")
     object : Stream {
         override val info = a.info.copy(width = ow, height = oh, frameCount = n)
         override fun meta(i: Int) = a.meta(min(a.info.frameCount - 1, i))
         override suspend fun getFrame(i: Int): Frame {
+            val tiles = coroutineScope { all.indices.map { t -> async { letterbox(at(all[t], if (t == 0) i else syncs[t].map(i)), W, H) } }.map { it.await() } }
             val out = Frame.alloc(ow, oh, true)
             var k = 0; while (k < out.d.size) { out.d[k] = bc[0].toFloat(); out.d[k + 1] = bc[1].toFloat(); out.d[k + 2] = bc[2].toFloat(); k += 4 }
-            for (t in 0 until N) putRows(out, letterbox(at(all[t], i), W, H), B + (t % cols) * (W + B), B + (t / cols) * (H + B))
+            for (t in 0 until N) putRows(out, tiles[t], B + (t % cols) * (W + B), B + (t / cols) * (H + B))
             if (!labels) return out
             return overlay(out) { c -> for (t in 0 until N) c.label(names[t], (B + (t % cols) * (W + B) + 8).toDouble(), (B + (t / cols) * (H + B) + 6).toDouble(), max(12, jsRound(H / 24.0)).toDouble(), colorInt("#ffffff"), colorInt("#000000", 0.6)) }
         }
@@ -93,15 +140,17 @@ private val pip: FilterImpl = { input, p, ctx ->
     if (inset.isEmpty()) throw IllegalStateException("Select the inset chain in the Filter Settings")
     val b = ctx.chainStream(inset)
     val w = a.info.width; val h = a.info.height
-    val iw = max(8, jsRound(w * p.num("scale") / 100)); val ih = max(8, jsRound(iw.toDouble() * b.info.height / b.info.width))
+    val iw = max(8, jsRound(w * p.num("scale") / 100)); val ih = max(8, jsRound(iw.toDouble() * b.info.height / max(1, b.info.width)))
     val x0 = jsRound(p.num("x") / 100 * w); val y0 = jsRound(p.num("y") / 100 * h)
-    val B = p.int("border"); val bc = parseColor(p.str("borderColor")); val off = p.int("offset")
+    val B = p.int("border"); val bc = parseColor(p.str("borderColor"))
+    val sync = Sync(a, b, byTime(p), p.int("offset"))
     object : Stream {
         override val info = a.info
         override fun meta(i: Int) = a.meta(i)
         override suspend fun getFrame(i: Int): Frame {
-            val out = a.getFrame(i).copy()
-            val ins = resize(at(b, i + off), iw, ih, Interp.BILINEAR)
+            val (fa, fb) = both(a, i, b, sync.map(i))
+            val out = fa.copy()
+            val ins = resize(fb, iw, ih, Interp.BILINEAR)
             for (y in -B until ih + B) for (x in -B until iw + B) {
                 val X = x0 + x; val Y = y0 + y
                 if (X < 0 || Y < 0 || X >= w || Y >= h) continue
@@ -119,14 +168,23 @@ private val timeline: FilterImpl = { input, p, ctx ->
     val a = needInput(input)
     val parts = arrayListOf(a)
     for (id in p.strs("chains")) if (id != ctx.chainId) parts.add(ctx.chainStream(id))
+    val fps = if (a.info.fps > 0) a.info.fps else 25.0
+    val timed = byTime(p)
+    val timings = parts.map { Timing(it) }
+    // by time, every appended chain is resampled to this chain's frame rate, so it plays at its real speed
+    val counts = parts.mapIndexed { k, s -> if (!timed || k == 0) s.info.frameCount else max(1, Math.round((timings[k].end - timings[k].start) * fps).toInt()) }
     val starts = IntArray(parts.size); var total = 0
-    parts.forEachIndexed { k, s -> starts[k] = total; total += s.info.frameCount }
-    fun locate(i: Int): Pair<Stream, Int> { var k = parts.size - 1; while (k > 0 && i < starts[k]) k--; return parts[k] to i - starts[k] }
+    counts.forEachIndexed { k, c -> starts[k] = total; total += c }
+    fun locate(i: Int): Pair<Int, Int> {
+        var k = parts.size - 1; while (k > 0 && i < starts[k]) k--
+        val j = i - starts[k]
+        return k to (if (!timed || k == 0) j else timings[k].frameAt(timings[k].start + j / fps))
+    }
     val w = a.info.width; val h = a.info.height
     object : Stream {
         override val info = a.info.copy(frameCount = total)
-        override fun meta(i: Int): FrameMeta { val (s, j) = locate(i); return s.meta(j).copy(pts = i / a.info.fps) }
-        override suspend fun getFrame(i: Int): Frame { val (s, j) = locate(i); return letterbox(s.getFrame(j), w, h) }
+        override fun meta(i: Int): FrameMeta { val (k, j) = locate(i); return parts[k].meta(j).copy(pts = i / fps) }
+        override suspend fun getFrame(i: Int): Frame { val (k, j) = locate(i); return letterbox(parts[k].getFrame(j), w, h) }
     }
 }
 
@@ -137,11 +195,13 @@ private val replaceChannel: FilterImpl = { input, p, ctx ->
     val b = ctx.chainStream(src)
     val ti = when (p.str("target")) { "g" -> 1; "b" -> 2; else -> 0 }
     val sc = p.str("sourceChannel")
+    val sync = Sync(a, b, byTime(p), 0)
     object : Stream {
         override val info = a.info
         override fun meta(i: Int) = a.meta(i)
         override suspend fun getFrame(i: Int): Frame {
-            val fa = a.getFrame(i); val fb = fit(at(b, i), fa.w, fa.h)
+            val (fa, fb0) = both(a, i, b, sync.map(i))
+            val fb = fit(fb0, fa.w, fa.h)
             val out = fa.d.copyOf()
             var k = 0; while (k < out.size) { out[k + ti] = channelValue(sc, fb.d[k].toDouble(), fb.d[k + 1].toDouble(), fb.d[k + 2].toDouble()).toFloat(); k += 4 }
             return Frame(fa.w, fa.h, out)

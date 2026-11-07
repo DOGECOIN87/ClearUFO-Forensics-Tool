@@ -92,22 +92,41 @@ class VideoSource private constructor(private val ctx: Context, override val inf
     private var colors = ColorFacts()
     private val lock = Mutex()
     private var pfd: ParcelFileDescriptor? = null
-    private var extractor: MediaExtractor? = null
-    private var codec: MediaCodec? = null
     private var codecName = ""
-    private var nextDecode = 0
-    private var segmentStart = -1
-    private var lastOutPts = Long.MIN_VALUE
-    private var inputDone = false
-    private val cache = object : LinkedHashMap<Long, Yuv.Planes>(16, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, Yuv.Planes>?): Boolean = size > 8
+    /**
+     * Independent decoding positions: linked chains, Compare Original or a mixer offset read the same file at two or
+     * three places at once; each place keeps its own extractor and hardware decoder instead of seeking back and forth.
+     */
+    private inner class Cursor {
+        var extractor: MediaExtractor? = null
+        var codec: MediaCodec? = null
+        var nextDecode = 0
+        var segmentStart = -1
+        var lastOutPts = Long.MIN_VALUE
+        var inputDone = false
+        var used = 0L
+        fun release() {
+            try { codec?.stop() } catch (_: Exception) { }
+            try { codec?.release() } catch (_: Exception) { }
+            try { extractor?.release() } catch (_: Exception) { }
+            codec = null; extractor = null; segmentStart = -1; lastOutPts = Long.MIN_VALUE; inputDone = false
+        }
+    }
+    private val cursors = ArrayList<Cursor>()
+    private var clock = 0L
+    /** Decoded pictures by timestamp, bounded by bytes (shared by the cursors). */
+    private val cache = object : LinkedHashMap<Long, Yuv.Planes>(32, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, Yuv.Planes>?): Boolean {
+            var bytes = 0L
+            for (v in values) bytes += (v.y.size + v.u.size + v.v.size) * 2L
+            return size > 3 && bytes > 64L * 1048576
+        }
     }
     var decodable = true; private set
     private var retriever: MediaMetadataRetriever? = null
 
     private fun openExtractor(): MediaExtractor {
-        val p = ctx.contentResolver.openFileDescriptor(file.uri, "r") ?: throw IllegalStateException("The video cannot be opened")
-        pfd?.close(); pfd = p
+        val p = pfd ?: (ctx.contentResolver.openFileDescriptor(file.uri, "r") ?: throw IllegalStateException("The video cannot be opened")).also { pfd = it }
         return MediaExtractor().apply { setDataSource(p.fileDescriptor) }
     }
 
@@ -170,38 +189,45 @@ class VideoSource private constructor(private val ctx: Context, override val inf
         } catch (_: Exception) { }
     }
 
-    private fun ensureCodec() {
-        if (codec != null) return
+    private fun startCodec(cur: Cursor) {
         val f = MediaFormat.createVideoFormat(trackFormat.getString(MediaFormat.KEY_MIME)!!, trackFormat.optInt(MediaFormat.KEY_WIDTH), trackFormat.optInt(MediaFormat.KEY_HEIGHT))
         for (k in listOf("csd-0", "csd-1", "csd-2")) if (trackFormat.containsKey(k)) f.setByteBuffer(k, trackFormat.getByteBuffer(k))
         for (k in listOf(MediaFormat.KEY_PROFILE, MediaFormat.KEY_LEVEL, MediaFormat.KEY_COLOR_STANDARD, MediaFormat.KEY_COLOR_RANGE, MediaFormat.KEY_COLOR_TRANSFER)) trackFormat.optIntOrNull(k)?.let { f.setInteger(k, it) }
         f.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible)
         val name = MediaCodecList(MediaCodecList.REGULAR_CODECS).findDecoderForFormat(f) ?: throw IllegalArgumentException("This device has no decoder for ${trackFormat.getString(MediaFormat.KEY_MIME)}")
         val c = MediaCodec.createByCodecName(name)
-        c.configure(f, null, null, 0)
-        c.start()
-        codec = c; codecName = name
+        try { c.configure(f, null, null, 0); c.start() } catch (e: Exception) { c.release(); throw e }
+        cur.codec = c; codecName = name
         info.engine = "MediaCodec ($name) + ClearUFO YUV → RGB"
-        if (extractor == null) extractor = openExtractor().also { it.selectTrack(track) }
+        if (cur.extractor == null) cur.extractor = MediaExtractor().apply { setDataSource(pfd!!.fileDescriptor); selectTrack(track) }
     }
 
-    private fun releaseCodec() {
-        try { codec?.stop() } catch (_: Exception) { }
-        try { codec?.release() } catch (_: Exception) { }
-        codec = null; segmentStart = -1; lastOutPts = Long.MIN_VALUE; inputDone = false
-    }
+    private fun releaseAll() { cursors.forEach { it.release() }; cursors.clear() }
 
     private fun syncBefore(dec: Int): Int { var s = dec; while (s > 0 && dFlags[s] and MediaExtractor.SAMPLE_FLAG_SYNC == 0) s--; return s }
+
+    private fun canContinue(c: Cursor, s: Int, target: Long) = c.codec != null && c.segmentStart >= 0 && !c.inputDone && s >= c.segmentStart && s <= c.nextDecode && target > c.lastOutPts
+
+    /** The cursor that reaches `target` soonest: one already positioned before it, else a new one, else the least recently used. */
+    private fun cursorFor(s: Int, dec: Int, target: Long): Cursor {
+        cursors.filter { canContinue(it, s, target) }.minByOrNull { kotlin.math.abs(dec - it.nextDecode) }?.let { return it }
+        if (cursors.size < MAX_CURSORS) {
+            val c = Cursor()
+            try { startCodec(c); cursors.add(c); return c } catch (e: Exception) { c.release(); if (cursors.isEmpty()) throw e }
+        }
+        return cursors.minBy { it.used }
+    }
 
     private fun decodeTo(targetDisp: Int): Yuv.Planes {
         val target = dPts[order[targetDisp]]
         cache[target]?.let { return it }
-        ensureCodec()
-        val c = codec!!; val ex = extractor!!
         val dec = order[targetDisp]
         val s = syncBefore(dec)
-        val continuing = segmentStart >= 0 && !inputDone && s >= segmentStart && s <= nextDecode && target > lastOutPts
-        if (!continuing) {
+        val cur = cursorFor(s, dec, target)
+        cur.used = ++clock
+        if (cur.codec == null) startCodec(cur)
+        val c = cur.codec!!; val ex = cur.extractor!!
+        if (!canContinue(cur, s, target)) {
             c.flush()
             ex.seekTo(dPts[s], MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
             // the extractor lands on a sync sample at or before the wanted one: step forward to it
@@ -209,46 +235,52 @@ class VideoSource private constructor(private val ctx: Context, override val inf
             var guard = 0
             while (ex.sampleTime >= 0 && ex.sampleTime != dPts[s] && guard++ < 1_000_000) if (!ex.advance()) break
             if (ex.sampleTime != dPts[s]) throw IllegalStateException("Seeking to frame $targetDisp failed")
-            nextDecode = s; segmentStart = s; lastOutPts = Long.MIN_VALUE; inputDone = false
+            cur.nextDecode = s; cur.segmentStart = s; cur.lastOutPts = Long.MIN_VALUE; cur.inputDone = false
         }
         val bi = MediaCodec.BufferInfo()
         var found: Yuv.Planes? = null
         var idle = 0
-        while (found == null) {
-            var progressed = false
-            if (!inputDone) {
-                val ib = c.dequeueInputBuffer(2000)
-                if (ib >= 0) {
-                    val buf = c.getInputBuffer(ib)!!
-                    val n = ex.readSampleData(buf, 0)
-                    if (n < 0) { c.queueInputBuffer(ib, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM); inputDone = true }
-                    else { c.queueInputBuffer(ib, 0, n, ex.sampleTime, 0); ex.advance(); nextDecode++ }
-                    progressed = true
-                }
-            }
-            val ob = c.dequeueOutputBuffer(bi, 2000)
-            if (ob >= 0) {
-                progressed = true
-                if (bi.size > 0 || bi.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM == 0) {
-                    c.getOutputImage(ob)?.let { img ->
-                        val pl = copyImage(img); img.close()
-                        cache[bi.presentationTimeUs] = pl
-                        lastOutPts = bi.presentationTimeUs
-                        if (bi.presentationTimeUs == target) found = pl
+        try {
+            while (found == null) {
+                var progressed = false
+                if (!cur.inputDone) {
+                    val ib = c.dequeueInputBuffer(2000)
+                    if (ib >= 0) {
+                        val buf = c.getInputBuffer(ib)!!
+                        val n = ex.readSampleData(buf, 0)
+                        if (n < 0) { c.queueInputBuffer(ib, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM); cur.inputDone = true }
+                        else { c.queueInputBuffer(ib, 0, n, ex.sampleTime, 0); ex.advance(); cur.nextDecode++ }
+                        progressed = true
                     }
                 }
-                c.releaseOutputBuffer(ob, false)
-                if (bi.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0 && found == null) {
-                    segmentStart = -1
-                    throw IllegalStateException("Frame $targetDisp could not be decoded (the decoder returned no picture for it)")
+                val ob = c.dequeueOutputBuffer(bi, 2000)
+                if (ob >= 0) {
+                    progressed = true
+                    if (bi.size > 0 || bi.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM == 0) {
+                        c.getOutputImage(ob)?.let { img ->
+                            val pl = copyImage(img); img.close()
+                            cache[bi.presentationTimeUs] = pl
+                            cur.lastOutPts = bi.presentationTimeUs
+                            if (bi.presentationTimeUs == target) found = pl
+                        }
+                    }
+                    c.releaseOutputBuffer(ob, false)
+                    if (bi.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0 && found == null) {
+                        cur.segmentStart = -1
+                        throw IllegalStateException("Frame $targetDisp could not be decoded (the decoder returned no picture for it)")
+                    }
+                } else if (ob == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    val of = c.outputFormat
+                    colors = ColorFacts(colors.standard ?: of.optIntOrNull(MediaFormat.KEY_COLOR_STANDARD), colors.range ?: of.optIntOrNull(MediaFormat.KEY_COLOR_RANGE), colors.transfer ?: of.optIntOrNull(MediaFormat.KEY_COLOR_TRANSFER))
+                    progressed = true
                 }
-            } else if (ob == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                val of = c.outputFormat
-                colors = ColorFacts(colors.standard ?: of.optIntOrNull(MediaFormat.KEY_COLOR_STANDARD), colors.range ?: of.optIntOrNull(MediaFormat.KEY_COLOR_RANGE), colors.transfer ?: of.optIntOrNull(MediaFormat.KEY_COLOR_TRANSFER))
-                progressed = true
+                if (!progressed && ++idle > 2500) throw IllegalStateException("The decoder stopped responding at frame $targetDisp")
+                if (progressed) idle = 0
             }
-            if (!progressed && ++idle > 2500) { releaseCodec(); throw IllegalStateException("The decoder stopped responding at frame $targetDisp") }
-            if (progressed) idle = 0
+        } catch (e: Exception) {
+            // a decoder in an error state is replaced on the next request
+            cur.release(); cursors.remove(cur)
+            throw if (e is IllegalStateException) e else IllegalStateException(e.message ?: e.javaClass.simpleName, e)
         }
         return found!!
     }
@@ -256,7 +288,7 @@ class VideoSource private constructor(private val ctx: Context, override val inf
     override suspend fun getFrame(i: Int, opts: DecodeOptions): Frame = withContext(Dispatchers.IO) {
         val idx = max(0, min(info.frameCount - 1, i))
         if (opts.engine == "media" || !decodable) return@withContext retrieverFrame(idx)
-        val planes = lock.withLock { try { decodeTo(idx) } catch (e: IllegalStateException) { releaseCodec(); throw e } }
+        val planes = lock.withLock { decodeTo(idx) }
         planesToFrame(planes, colors, opts, info)
     }
 
@@ -304,10 +336,13 @@ class VideoSource private constructor(private val ctx: Context, override val inf
     }
 
     override fun dispose() {
-        try { releaseCodec(); extractor?.release(); pfd?.close(); retriever?.release() } catch (_: Exception) { }
+        try { releaseAll(); pfd?.close(); retriever?.release() } catch (_: Exception) { }
     }
 
     companion object {
+        /** Decoding positions kept per video (each one holds a hardware decoder). */
+        const val MAX_CURSORS = 3
+
         suspend fun open(ctx: Context, id: String, f: EvidenceFile): VideoSource = withContext(Dispatchers.IO) {
             val info = SourceInfo(id, "video", f.name, f.size, 1, f.mime, container = f.name.substringAfterLast('.', "").uppercase())
             val v = VideoSource(ctx, info, f)
@@ -317,7 +352,7 @@ class VideoSource private constructor(private val ctx: Context, override val inf
                 val p = v.lock.withLock { v.decodeTo(0) }
                 info.width = p.w; info.height = p.h; info.bitDepth = p.bits
             } catch (e: Exception) {
-                v.releaseCodec()
+                v.releaseAll()
                 v.decodable = false
                 info.engine = "Android platform frame retriever (MediaCodec could not decode this file: ${e.message})"
                 MediaMetadataRetriever().use { r ->

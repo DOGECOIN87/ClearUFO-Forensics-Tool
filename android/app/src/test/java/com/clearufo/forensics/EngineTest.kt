@@ -21,16 +21,16 @@ import org.junit.Assert.*
 import org.junit.Test
 
 /** A video of `n` deterministic frames, counting how often each frame is decoded. */
-class FakeSource(val n: Int, val w: Int = 48, val h: Int = 32) : SourceProvider {
+class FakeSource(val n: Int, val w: Int = 48, val h: Int = 32, val fps: Double = 25.0) : SourceProvider {
     val decodes = IntArray(n)
-    override val info = SourceInfo("src", "video", "fake.mp4", width = w, height = h, frameCount = n, fps = 25.0)
+    override val info = SourceInfo("src", "video", "fake.mp4", width = w, height = h, frameCount = n, fps = fps)
     override suspend fun getFrame(i: Int, opts: DecodeOptions): Frame {
         decodes[i]++
         val r = rng(1000 + i); val f = Frame.alloc(w, h)
-        for (k in 0 until w * h) { f.d[k * 4] = (k % w * 4 + r() * 10).toFloat(); f.d[k * 4 + 1] = (k / w * 6 + r() * 10).toFloat(); f.d[k * 4 + 2] = (i * 20 % 255).toFloat() }
+        for (k in 0 until w * h) { f.d[k * 4] = (k % w * 4 + r() * 10).toFloat(); f.d[k * 4 + 1] = (k / w * 6 + r() * 10).toFloat(); f.d[k * 4 + 2] = (i * 10 % 256).toFloat() }
         return f
     }
-    override fun meta(i: Int) = FrameMeta(if (i % 5 == 0) 'I' else 'P', i / 25.0, i % 5 == 0, 1000 + i, i)
+    override fun meta(i: Int) = FrameMeta(if (i % 5 == 0) 'I' else 'P', i / fps, i % 5 == 0, 1000 + i, i)
 }
 
 class EngineTest {
@@ -110,6 +110,24 @@ class EngineTest {
                 for (c in 0 until 4) assertEquals(i.d[(sy * i.w + sx) * 4 + c], o.d[(y * o.w + x) * 4 + c], 0f)
             }
         }
+    }
+
+    /** Linked chains follow the timestamps: a 30 fps chain mixed with a 25 fps one shows the frame on screen at that moment. */
+    @Test fun linkedChainsAreSynchronizedByTime() = runBlocking {
+        val e = Engine()
+        e.addSource("a", FakeSource(30, fps = 30.0)); e.addSource("b", FakeSource(25, fps = 25.0)); e.addSource("c", FakeSource(10, fps = 50.0))
+        fun mix(sync: String, offset: Double) = ChainDoc("m", "m", listOf(f("video_loader", "source" to "a"), f("video_mixer", "second" to "cb", "mode" to "sbs_h", "sync" to sync, "offset" to offset)))
+        val cb = ChainDoc("cb", "B", listOf(f("video_loader", "source" to "b")))
+        fun bFrameShown(i: Int) = runBlocking { val o = e.render("m", null, false, i).frame; (o.d[(5 * o.w + 60) * 4 + 2] / 10f).toInt() } // blue = frame × 10
+        e.setProject(listOf(mix("time", 0.0), cb))
+        for (i in listOf(0, 1, 6, 7, 29)) assertEquals("A frame $i", Math.floor(i / 30.0 * 25 + 1e-6).toInt(), bFrameShown(i))
+        e.setProject(listOf(mix("time", 3.0), cb))                       // 3 frames of A = 0.1 s
+        assertEquals(Math.floor((12 / 30.0 + 0.1) * 25 + 1e-6).toInt(), bFrameShown(12))
+        e.setProject(listOf(mix("frame", 0.0), cb))                       // browser projects: frame numbers
+        assertEquals(7, bFrameShown(7))
+        // Timeline: a 50 fps clip appended to a 30 fps chain is resampled (0.2 s → 6 frames), not played 1.67× too fast
+        e.setProject(listOf(ChainDoc("t", "t", listOf(f("video_loader", "source" to "a"), f("timeline", "chains" to listOf("cc")))), ChainDoc("cc", "C", listOf(f("video_loader", "source" to "c")))))
+        assertEquals(36, e.render("t", null, false, 0).info.frameCount)
     }
 
     @Test fun errorsNameTheFilter() = runBlocking {
@@ -199,7 +217,7 @@ class CatalogConformanceTest {
                 if (d is NumberParam && (d.min != p.optDouble("min") || d.max != p.optDouble("max"))) problems.add("$id.$key range ${d.min}..${d.max} != ${p.opt("min")}..${p.opt("max")}")
                 if (d is SelectParam) { val wo = p.getJSONArray("options").let { a -> (0 until a.length()).map { a.getString(it) } }; if (d.options.map { it.first } != wo) problems.add("$id.$key options ${d.options.map { it.first }} != $wo") }
             }
-            for (k in kp.keys) if ((0 until wp.length()).none { wp.getJSONObject(it).getString("key") == k }) problems.add("$id.$k not in the browser catalog")
+            for (k in kp.keys) if ((0 until wp.length()).none { wp.getJSONObject(it).getString("key") == k } && "$id.$k" !in ANDROID_ONLY_PARAMS) problems.add("$id.$k not in the browser catalog")
         }
         for (id in FILTERS.keys) if (id !in webIds) problems.add("extra filter $id")
         assertTrue(problems.joinToString("\n"), problems.isEmpty())
