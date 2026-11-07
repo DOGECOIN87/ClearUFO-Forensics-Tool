@@ -18,8 +18,9 @@ cd android
 ./gradlew :app:assembleRelease
 ```
 
-Output: `app/build/outputs/apk/release/app-release-unsigned.apk` (≈3.5 MB, minified with R8). A prebuilt copy is
-committed as `dist/ClearUFO-Forensics-1.0.0-unsigned.apk`.
+Output: `app/build/outputs/apk/release/app-release-unsigned.apk` (≈3.5 MB, minified with R8). Prebuilt copies are in
+`dist/`. Install `ClearUFO-Forensics-1.0.0.apk` (signed, installable); `ClearUFO-Forensics-1.0.0-unsigned.apk` is
+the same build without a signature, and Android refuses to install it ("invalid package") until it is signed.
 
 Every push that changes `android/` also builds the APK on GitHub Actions (workflow **Android APK**). The
 APK and the Fold3 screenshots are attached to each run as artifacts.

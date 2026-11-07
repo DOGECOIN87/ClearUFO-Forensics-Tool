@@ -8,3 +8,5 @@ local.properties
 captures/
 .robolectric-deps/
 dist/*-debug.apk
+clearufo-release.jks
+clearufo-release.password
