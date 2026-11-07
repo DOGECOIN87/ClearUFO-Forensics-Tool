@@ -8,7 +8,7 @@ The Android configuration blocks `android.permission.INTERNET` and `android.perm
 
 ## Current milestone
 
-The first slice supports static PNG still images only: select a local PNG, hash its original bytes with MD5/SHA-1/SHA-256, decode its stored samples with the exact PNG decoder, apply the reference Negative formula, export a 16-bit RGB PNG, save it to a user-selected Android folder, read the file back, and compare every 16-bit sample. The original source file is not overwritten. Animated PNG, other source formats, cases/projects, video, reports, and the remaining filters are not implemented yet; this is not full product parity.
+The first verified processing slice supports static PNG still images only: select a local PNG, hash its original bytes with MD5/SHA-1/SHA-256, decode its stored samples with the exact PNG decoder, apply the reference Negative formula, export a 16-bit RGB PNG, save it to a user-selected Android folder, read the file back, and compare every 16-bit sample. The original source file is not overwritten. A separate video-review foundation now selects local videos, hashes original bytes in 4 MiB chunks with progress/cancellation, and presents native platform-decoder playback controls. That playback is a review preview, not verified forensic decoding. Exact frame/PTS extraction, video filters, temporal analysis, custom DVR/bitstream paths, and video export are still unimplemented. Animated PNG, other still formats, cases/projects, reports, and most filters are also outstanding; this is not full product parity.
 
 ## Checks
 
@@ -17,14 +17,14 @@ From this directory:
 ```sh
 pnpm install
 pnpm check
-pnpm exec vitest run tests/forensics/imagePipeline.test.ts
+pnpm exec vitest run
 ```
 
-The focused suite currently has six passing tests for hash vectors, zlib/PNG decoding, Negative math, 16-bit sample preservation/read-back, RGB16 quantization, and base64 byte I/O. These are source-level checks; they do not replace a native Android device test.
+The native suite currently has 35 passing tests and one skipped test, covering CORS/auth behavior, the PNG processing pipeline, streaming-hash vectors, progress, cancellation, and file-size integrity. These are source-level checks; they do not replace a native Android device test.
 
 ## Android development/build
 
-Open this project in the Manus Mobile Dashboard/Expo workflow to preview with Expo Go. Build the installable APK through the Dashboard's Android APK action from an accepted Manus project checkpoint; do not run EAS/Gradle release builds from the sandbox. No APK artifact has been produced yet. Before calling the first milestone complete, install that APK on an Android device/emulator, disable connectivity, exercise the picker → hash → Negative → SAF export → saved-file verification flow, and record Android version/device, supported formats, known gaps, and artifact hash.
+Open this project in the Manus Mobile Dashboard/Expo workflow to preview with Expo Go. Build the installable APK through the Dashboard's Android APK action from an accepted Manus project checkpoint; do not run EAS/Gradle release builds from the sandbox. No APK artifact has been produced yet. Install the resulting APK on an Android device/emulator and test both the PNG picker → hash → Negative → SAF export → saved-file verification flow and local-video selection, hash cancellation, and playback. Record the Android version/device, supported formats, known gaps, and artifact hash. Video playback must remain clearly distinguished from exact frame/PTS decoding and forensic processing.
 
 ## Managed template scaffold
 

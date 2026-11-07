@@ -149,3 +149,42 @@ export async function hashBlob(blob: Blob, onProgress?: (v: number) => void, isC
   }
   return { md5: a.digest(), sha1: b.digest(), sha256: c.digest() };
 }
+
+export interface EvidenceHashProgress {
+  bytesRead: number;
+  totalBytes: number | null;
+}
+
+/** Hash an async byte stream while keeping only the current chunk in memory. */
+export async function hashEvidenceChunks(
+  chunks: AsyncIterable<Uint8Array>,
+  totalBytes: number | null,
+  onProgress?: (progress: EvidenceHashProgress) => void,
+  isCancelled?: () => boolean,
+): Promise<{ md5: string; sha1: string; sha256: string; byteLength: number }> {
+  if (totalBytes !== null && (!Number.isSafeInteger(totalBytes) || totalBytes < 0)) {
+    throw new Error("The evidence file size is invalid.");
+  }
+  const md5Hash = new MD5();
+  const sha1Hash = new SHA1();
+  const sha256Hash = new SHA256();
+  let bytesRead = 0;
+  for await (const chunk of chunks) {
+    if (isCancelled?.()) throw new Error("Evidence hashing cancelled.");
+    if (chunk.length === 0) continue;
+    bytesRead += chunk.length;
+    if (!Number.isSafeInteger(bytesRead) || (totalBytes !== null && bytesRead > totalBytes)) {
+      throw new Error("The evidence file changed size while it was being hashed.");
+    }
+    md5Hash.update(chunk);
+    sha1Hash.update(chunk);
+    sha256Hash.update(chunk);
+    onProgress?.({ bytesRead, totalBytes });
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
+  if (isCancelled?.()) throw new Error("Evidence hashing cancelled.");
+  if (totalBytes !== null && bytesRead !== totalBytes) {
+    throw new Error(`The evidence file changed size while it was being hashed (${bytesRead} vs ${totalBytes} bytes).`);
+  }
+  return { md5: md5Hash.digest(), sha1: sha1Hash.digest(), sha256: sha256Hash.digest(), byteLength: bytesRead };
+}
