@@ -158,6 +158,27 @@ class EngineTest {
         assertTrue(src.n == 12)
     }
 
+    @Test fun extractedChannelsCanBeLinked() = runBlocking {
+        val e = Engine(); e.addSource("a", FakeSource(10)); e.addSource("b", FakeSource(10))
+        val chainA = ChainDoc("A", "A", listOf(f("video_loader", "source" to "a"), f("extract_channel", "channel" to "r")))
+        val plainA = ChainDoc("P", "P", listOf(f("video_loader", "source" to "a")))
+        // another chain links the extracted chain: its right half is A's red channel in gray
+        val chainB = ChainDoc("B", "B", listOf(f("video_loader", "source" to "b"), f("video_mixer", "second" to "A", "mode" to "sbs_h")))
+        // a link step after Extract Channel in the same chain: its left half is the extracted channel
+        val chainA2 = ChainDoc("A2", "A2", listOf(f("video_loader", "source" to "a"), f("extract_channel", "channel" to "r"), f("video_mixer", "second" to "B", "mode" to "sbs_h")))
+        e.setProject(listOf(chainA, plainA, chainB, chainA2))
+        val src = e.render("P", null, false, 4).frame; val w = src.w
+        val mb = e.render("B", null, false, 4).frame
+        val ma = e.render("A2", null, false, 4).frame
+        for (k in listOf(0, 77, 500)) {
+            val x = k % w; val y = k / w; val red = src.d[k * 4]
+            val qb = (y * mb.w + x + w) * 4
+            assertEquals(red, mb.d[qb], 1e-3f); assertEquals(red, mb.d[qb + 1], 1e-3f); assertEquals(red, mb.d[qb + 2], 1e-3f)
+            val qa = (y * ma.w + x) * 4
+            assertEquals(red, ma.d[qa], 1e-3f); assertEquals(red, ma.d[qa + 1], 1e-3f); assertEquals(red, ma.d[qa + 2], 1e-3f)
+        }
+    }
+
     @Test fun errorsNameTheFilter() = runBlocking {
         val e = Engine()
         val loader = f("video_loader", "source" to "missing")

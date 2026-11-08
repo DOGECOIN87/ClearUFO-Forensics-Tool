@@ -13,7 +13,7 @@ import { deconvolve, fourierFilter, hannWindowed, phaseCorrelate, spectrum } fro
 import { homography, resize, translate, warp } from "../../src/engine/kernels/geometry";
 import { jpegRoundTrip } from "../../src/engine/kernels/jpeg";
 import { diskPsf, gaussianPsf, linePsf, pathPsf } from "../../src/shared/psf";
-import { smoothFrame } from "../../src/engine/filters/temporal";
+import { smoothFrame, temporalFilters } from "../../src/engine/filters/temporal";
 import { yuvToFrame } from "../../src/engine/sources/yuv";
 import { luma } from "../../src/engine/frame";
 import { FILTER_LIST } from "../../src/shared/filters";
@@ -129,6 +129,20 @@ saveFrame("jpeg_q75_444", jpegRoundTrip(f, 75, "444"));
     ["smooth_median_protect", { size: 5, method: "median", protect: true, threshold: 8, showMask: false }],
     ["smooth_mean_mask", { size: 5, method: "mean", protect: true, threshold: 6, showMask: true }],
   ] as const) saveFrame(name, await smoothFrame(get, 3, frames.length, o as any));
+}
+
+// ---------------------------------------------------------------- super resolution
+{
+  // sub-pixel shifted views of the same scene (each with its own noise)
+  const shifts = [[0, 0], [0.4, -0.3], [-0.7, 0.25], [1.2, 0.6], [-0.35, -0.8], [0.55, 1.1]];
+  const frames = shifts.map(([dx, dy], k) => input(W, H, 200 + k, dx, dy));
+  const s = { info: { width: W, height: H, frameCount: frames.length, fps: 25, par: 1 }, getFrame: async (i: number) => frames[i], meta: (i: number) => ({ type: "P", pts: i / 25, key: i === 0, bytes: 0, src: i }) };
+  const ctx = { isStale: () => false, progress: () => {} };
+  for (const [name, p] of [
+    ["superres_gauss_x2", { scale: 2, roi: null, maxFrames: 30, kernel: "gaussian" }],
+    ["superres_bilinear_x3", { scale: 3, roi: null, maxFrames: 30, kernel: "bilinear" }],
+    ["superres_gauss_x2_roi", { scale: 2, roi: { x: 9, y: 7, w: 40, h: 33 }, maxFrames: 4, kernel: "gaussian" }],
+  ] as const) saveFrame(name, await (await temporalFilters.super_resolution(s as any, p as any, ctx as any)).getFrame(0));
 }
 
 // ---------------------------------------------------------------- YUV → RGB (I420, 8-bit)

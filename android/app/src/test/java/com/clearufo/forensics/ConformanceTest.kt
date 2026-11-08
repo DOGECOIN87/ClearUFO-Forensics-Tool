@@ -133,4 +133,54 @@ class ConformanceTest {
             check("yuv_2020_limited_nearest", Yuv.toFrame(p, "bt2020", false, "nearest", "left"))
         }
     }
+
+    /** Super Resolution as a whole filter (registration, splatting, blend with the bicubic base). */
+    private fun superRes(frames: List<Frame>, vararg p: Pair<String, Any?>): Frame = runBlocking {
+        val W = frames[0].w; val H = frames[0].h
+        val s = object : com.clearufo.forensics.engine.Stream {
+            override val info = com.clearufo.forensics.engine.StreamInfo(W, H, frames.size, 25.0)
+            override suspend fun getFrame(i: Int) = frames[i]
+            override fun meta(i: Int) = com.clearufo.forensics.engine.FrameMeta('P', i / 25.0, i == 0, 0, i)
+        }
+        val ctx = object : com.clearufo.forensics.engine.filters.BuildCtx {
+            override val chainId = "c"; override val filterId = "f"; override val key = "k"
+            override fun source(id: String) = throw IllegalStateException()
+            override suspend fun chainStream(id: String) = throw IllegalStateException()
+            override fun chainName(id: String) = "c"
+            override suspend fun originalStream() = s
+            override fun sourceOfChain() = null
+            override fun progress(label: String, v: Double) {}
+            override fun isStale() = false
+        }
+        val def = com.clearufo.forensics.engine.FILTERS["super_resolution"]!!
+        com.clearufo.forensics.engine.IMPLS["super_resolution"]!!(s, com.clearufo.forensics.engine.normalizeParams(def, mapOf(*p)), ctx).getFrame(0)
+    }
+
+    @Test fun superResolutionMatchesBrowserWorkbench() {
+        val W = 61; val H = 47
+        val shifts = listOf(0.0 to 0.0, 0.4 to -0.3, -0.7 to 0.25, 1.2 to 0.6, -0.35 to -0.8, 0.55 to 1.1)
+        val frames = shifts.mapIndexed { k, (dx, dy) -> input(W, H, 200 + k, dx, dy) }
+        val roi = com.clearufo.forensics.engine.RectP(9.0, 7.0, 40.0, 33.0)
+        check("superres_gauss_x2", superRes(frames, "scale" to 2.0, "maxFrames" to 30.0, "kernel" to "gaussian", "output" to "frame"), 1e-3)
+        check("superres_bilinear_x3", superRes(frames, "scale" to 3.0, "maxFrames" to 30.0, "kernel" to "bilinear", "output" to "frame"), 1e-3)
+        val whole = superRes(frames, "scale" to 2.0, "roi" to roi, "maxFrames" to 4.0, "kernel" to "gaussian", "output" to "frame")
+        check("superres_gauss_x2_roi", whole, 1e-3)
+        // "Registration region only": exactly the region of the whole-frame result
+        val part = superRes(frames, "scale" to 2.0, "roi" to roi, "maxFrames" to 4.0, "kernel" to "gaussian", "output" to "region")
+        val x0 = 9 * 2; val y0 = 7 * 2; val pw = (49 - 9) * 2; val ph = (40 - 7) * 2
+        assertEquals(pw, part.w); assertEquals(ph, part.h)
+        for (y in 0 until ph) for (x in 0 until pw) for (c in 0 until 4)
+            assertEquals("region pixel $x,$y", whole.d[((y + y0) * whole.w + x + x0) * 4 + c], part.d[(y * pw + x) * 4 + c], 0f)
+        // built in many bands (little memory): the same result
+        com.clearufo.forensics.engine.filters.superResBandBytes = 122L * 32 * 7
+        try {
+            val banded = superRes(frames, "scale" to 2.0, "maxFrames" to 30.0, "kernel" to "gaussian", "output" to "frame")
+            val single = run { com.clearufo.forensics.engine.filters.superResBandBytes = 0; superRes(frames, "scale" to 2.0, "maxFrames" to 30.0, "kernel" to "gaussian", "output" to "frame") }
+            org.junit.Assert.assertArrayEquals("banded result", single.d, banded.d, 0f)
+            com.clearufo.forensics.engine.filters.superResBandBytes = 183L * 32 * 5
+            val bandedBl = superRes(frames, "scale" to 3.0, "maxFrames" to 30.0, "kernel" to "bilinear", "output" to "frame")
+            check("superres_bilinear_x3", bandedBl, 1e-3)
+        } finally { com.clearufo.forensics.engine.filters.superResBandBytes = 0 }
+        println(report)
+    }
 }

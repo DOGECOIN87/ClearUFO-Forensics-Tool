@@ -19,7 +19,7 @@ cd android
 ```
 
 Output: `app/build/outputs/apk/release/app-release-unsigned.apk` (≈3.5 MB, minified with R8). Prebuilt copies are in
-`dist/`. Install `ClearUFO-Forensics-1.0.4.apk` (signed, installable); `ClearUFO-Forensics-1.0.4-unsigned.apk` is
+`dist/`. Install `ClearUFO-Forensics-1.0.5.apk` (signed, installable); `ClearUFO-Forensics-1.0.5-unsigned.apk` is
 the same build without a signature, and Android refuses to install it ("invalid package") until it is signed.
 
 Every push that changes `android/` also builds the APK on GitHub Actions (workflow **Android APK**). The
@@ -52,7 +52,7 @@ and installs directly. It is installed beside the release app (`com.clearufo.for
 
 | Area | Implementation |
 |---|---|
-| Filters | All 85 filters in 17 categories of the browser workbench, with the same parameters, defaults and ranges. |
+| Filters | All 85 filters in 17 categories of the browser workbench, with the same parameters, defaults and ranges. Android additions: link filters can align chains by frame number (default) or by time, and Super Resolution can enlarge only the registration region (built in memory-bounded bands; a 4× enlargement of a whole full-HD frame does not fit in a phone). |
 | Pipeline | RGBA float32 frames on a 0–255 scale, never clamped between filters. Lazy streams with hash-keyed nodes: changing a parameter recomputes only what is downstream of it. Byte-budgeted LRU frame cache. Kernels split by rows over a ForkJoin pool (8 cores on the Snapdragon 888). |
 | Video | MediaExtractor indexes every sample (timestamp, sync flag, size). MediaCodec decodes frames exactly by presentation timestamp, handling B-frame reordering. ClearUFO converts YUV to RGB itself: BT.601/709/2020, limited/full range, chroma siting, nearest/bilinear/bicubic chroma, 10-bit, HDR (PQ/HLG) tone mapping to SDR (BT.2390). I/P/B frame types come from the H.264/HEVC slice headers. |
 | CCTV / DVR | Own AVI parser (uncompressed RGB, Motion JPEG, H.264/HEVC, OpenDML) and raw H.264/HEVC elementary streams (`.h264`, `.264`, `.h265`, `.265`, `.hevc`), decoded through MediaCodec. |
@@ -85,11 +85,12 @@ the caches and running exports are kept.
 ```
 
 - **ConformanceTest** runs the Kotlin kernels on deterministic inputs and compares them with the outputs of
-  the browser workbench's own TypeScript kernels (`conformance/generate.ts` writes the vectors). 38 of 39
+  the browser workbench's own TypeScript kernels (`conformance/generate.ts` writes the vectors). 41 of 42
   vectors are bit-identical: blurs, median, bilateral, non-local means, Wiener, deblocking, every resampling
   kernel, perspective, CLAHE, levels, curves, exposure, Wiener/Tikhonov/Richardson–Lucy deconvolution,
   Fourier filters, spectra, phase correlation, the ELA JPEG model, temporal smoothing with motion
-  protection, and YUV→RGB. Rotation differs by at most 6×10⁻⁵ of a level, from last-bit differences in
+  protection, YUV→RGB and Super Resolution (Gaussian and bilinear splatting, with a registration region, and
+  built in bands). Rotation differs by at most 6×10⁻⁵ of a level, from last-bit differences in
   `cos`/`sin`. To regenerate the vectors, run `npm ci`, then `node android/conformance/run.mjs` from the
   repository root.
 - **CatalogConformanceTest** checks every filter id, category, parameter key, type, default, range, option

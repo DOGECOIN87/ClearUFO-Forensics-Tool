@@ -329,7 +329,9 @@ val FILTER_LIST: List<FilterDef> = listOf(
             bool("showMask", "Show Protected Areas", false, show = { it["protect"] != false }, help = "Shows the image in gray with the pixels left out because of motion in red."),
         ), temporal = true, reference = REF.tnr, hint = "Hint: stabilize the video first if the camera moves."),
     FilterDef("super_resolution", "Super Resolution", "Integrate", FilterKind.FILTER, "Combines the frames with sub-pixel registration to increase the resolution.",
-        listOf(int("scale", "Scale Factor", 2, 4, 2), rect("roi", "Registration Region (optional)"), int("maxFrames", "Maximum Frames", 2, 200, 30), sel("kernel", "Splat Kernel", o("gaussian" to "Gaussian", "bilinear" to "Bilinear"), "gaussian")),
+        listOf(int("scale", "Scale Factor", 2, 4, 2), rect("roi", "Registration Region (optional)"), int("maxFrames", "Maximum Frames", 2, 200, 30), sel("kernel", "Splat Kernel", o("gaussian" to "Gaussian", "bilinear" to "Bilinear"), "gaussian"),
+            sel("output", "Output", o("region" to "Registration region only", "frame" to "Whole frame"), "region", legacy = "frame",
+                help = "With a registration region drawn, only that part is enlarged (identical to the same part of the whole-frame result, much faster and smaller; a phone cannot hold a 4× enlargement of a full HD frame). Without a region, or with Whole frame, the whole frame is enlarged as in the browser version.")),
         temporal = true, slow = true, reference = REF.sr, overlayOn = "any", hint = "Hint: select a region on the object for registration. Works best on stabilized, slightly moving content."),
     // ============================== Presentation
     FilterDef("add_text", "Add Text", "Presentation", FilterKind.FILTER, "Adds a text to the image.",
@@ -369,7 +371,7 @@ val FILTER_LIST: List<FilterDef> = listOf(
 val FILTERS: Map<String, FilterDef> = FILTER_LIST.associateBy { it.id }
 
 /** Parameters of the Android edition that the browser catalog does not have (projects stay interchangeable). */
-val ANDROID_ONLY_PARAMS = setOf("video_mixer.sync", "multiview.sync", "picture_in_picture.sync", "timeline.sync", "replace_channel.sync")
+val ANDROID_ONLY_PARAMS = setOf("video_mixer.sync", "multiview.sync", "picture_in_picture.sync", "timeline.sync", "replace_channel.sync", "super_resolution.output")
 
 fun filtersInCategory(cat: String) = FILTER_LIST.filter { it.category == cat }
 

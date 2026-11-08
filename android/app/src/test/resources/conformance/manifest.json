@@ -179,6 +179,21 @@
   "h": 47,
   "c": 4
  },
+ "superres_gauss_x2": {
+  "w": 122,
+  "h": 94,
+  "c": 4
+ },
+ "superres_bilinear_x3": {
+  "w": 183,
+  "h": 141,
+  "c": 4
+ },
+ "superres_gauss_x2_roi": {
+  "w": 122,
+  "h": 94,
+  "c": 4
+ },
  "yuv_planes": {
   "w": 1067,
   "h": 1,

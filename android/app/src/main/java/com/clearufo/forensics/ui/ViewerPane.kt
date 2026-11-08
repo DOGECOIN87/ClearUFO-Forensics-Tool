@@ -185,6 +185,7 @@ fun ViewerPane(wb: Workbench, modifier: Modifier = Modifier, compact: Boolean = 
             Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) { Text(msg, color = Color.White, fontSize = 13.sp); Text("Tap to try again", color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp) }
         } }
         if (edit != null && editDef != null) EditBanner(wb, editDef, Modifier.align(Alignment.TopCenter).padding(top = 6.dp))
+        else ViewBanner(wb, Modifier.align(Alignment.TopCenter).padding(top = 6.dp, start = 56.dp, end = 56.dp))
         if (wb.rendering && !wb.playing) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter).height(2.dp), color = Pal.gold, trackColor = Color.Transparent)
     }
 }
@@ -238,6 +239,27 @@ private fun ViewerTools(wb: Workbench, fitted: Boolean, onFit: () -> Unit, on100
             }
             IconButton(onClick = { wb.showInput = !wb.showInput; wb.requestRender() }) { Icon(if (wb.showInput) Icons.Filled.Compare else Icons.Outlined.Compare, "Show input of the selected filter", tint = if (wb.showInput) Pal.gold else Color.White) }
         }
+    }
+}
+
+/**
+ * Says what the viewer shows whenever it is not the selected step's own result: its input (Show Input), or the final
+ * result with later steps on top (a link step after Extract Channel, for example). A tap shows the selected step.
+ */
+@Composable
+private fun ViewBanner(wb: Workbench, modifier: Modifier) {
+    val r = wb.render ?: return
+    val sel = wb.selectedFilter ?: return
+    val name = FILTERS[sel.type]?.name ?: return
+    val later = wb.stepsAfterSelected
+    val (text, action) = when {
+        r.input -> "Showing the INPUT of “$name” (before this step) · tap to see its result" to { wb.showInput = false; wb.requestRender() }
+        wb.viewFilterId == null && later > 0 -> "Final result: $later later step${if (later > 1) "s" else ""} after “$name” · tap to see “$name” only" to { wb.toggleViewFinal() }
+        later > 0 -> "Showing “$name” only ($later later step${if (later > 1) "s" else ""} hidden) · tap for the final result" to { wb.toggleViewFinal() }
+        else -> return
+    }
+    Surface(onClick = action, color = Pal.gold.copy(alpha = 0.92f), shape = RoundedCornerShape(8.dp), modifier = modifier) {
+        Text(text, color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp))
     }
 }
 

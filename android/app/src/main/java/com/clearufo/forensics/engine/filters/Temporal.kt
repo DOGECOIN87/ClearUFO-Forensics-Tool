@@ -516,6 +516,18 @@ private val temporalSmoothing: FilterImpl = { input, p, ctx ->
     mapStream(s) { cur, i -> smoothFrame({ j -> if (j == i) cur else s.getFrame(j) }, i, s.info.frameCount, size, method, protect, thr, show, ctx::isStale) }
 }
 
+/**
+ * Super Resolution (port of superRes in temporal.ts): every frame is registered to the first one by phase correlation
+ * on the registration region, its pixels are splatted onto an S× finer grid (Gaussian or bilinear weights, double
+ * precision sums), and the result is blended with the bicubic enlargement of the first frame where few samples fell.
+ * On the phone the result is built in horizontal bands so its sums fit in memory (each band reads the frames again;
+ * every output pixel still receives its samples in the same order), rows run on all cores, and the Gaussian weight of
+ * a sample is the product of its row and column factors. "Registration region only" builds just that part of the
+ * result (identical to the same part of the whole-frame result).
+ */
+/** Memory for the sums of one band of the Super Resolution result (0: an eighth of the heap). Tests set it lower. */
+@Volatile var superResBandBytes: Long = 0
+
 private val superRes: FilterImpl = { input, p, ctx ->
     val s = needInput(input)
     val n = min(s.info.frameCount, max(2, p.int("maxFrames")))
@@ -523,54 +535,101 @@ private val superRes: FilterImpl = { input, p, ctx ->
     val ref = s.getFrame(0)
     val w = ref.w; val h = ref.h
     val roi0 = p.rect("roi")
-    val roi = if (roi0 != null && roi0.w >= 16 && roi0.h >= 16) roi0 else RectP(0.0, 0.0, w.toDouble(), h.toDouble())
+    val hasRoi = roi0 != null && roi0.w >= 16 && roi0.h >= 16
+    val roi = if (hasRoi) roi0!! else RectP(0.0, 0.0, w.toDouble(), h.toDouble())
     fun pow2floor(v: Double) = 2.0.pow(floor(ln(max(2.0, v)) / ln(2.0))).toInt()
     val RW = max(32, min(256, pow2floor(roi.w))); val RH = max(32, min(256, pow2floor(roi.h)))
     val cx = jsRound(roi.x + roi.w / 2 - RW / 2.0); val cy = jsRound(roi.y + roi.h / 2 - RH / 2.0)
     val refWin = hannWindowed(luma(ref), w, h, cx, cy, RW, RH)
     val W2 = w * S; val H2 = h * S
-    val acc = DoubleArray(W2 * H2 * 3); val wsum = DoubleArray(W2 * H2)
-    val sig = 0.6 * S; val rad = ceil(sig * 2).toInt()
-    val bilinear = p.str("kernel") == "bilinear"
-    for (k in 0 until n) {
-        if (ctx.isStale()) throw Cancelled()
-        val f = if (k == 0) ref else s.getFrame(k)
-        if (f.w != w || f.h != h) continue
-        val sh = if (k == 0) Shift(0.0, 0.0, 1.0) else phaseCorrelate(refWin, hannWindowed(luma(f), w, h, cx, cy, RW, RH), RW, RH)
-        for (y in 0 until h) for (x in 0 until w) {
-            val X = (x - sh.dx + 0.5) * S - 0.5; val Y = (y - sh.dy + 0.5) * S - 0.5
-            val o = (y * w + x) * 4
-            if (bilinear) {
-                val x0 = floor(X).toInt(); val y0 = floor(Y).toInt(); val fx = X - x0; val fy = Y - y0
-                for (t in 0 until 4) {
-                    val tx = x0 + (t and 1); val ty = y0 + (t shr 1)
-                    val wt = when (t) { 0 -> (1 - fx) * (1 - fy); 1 -> fx * (1 - fy); 2 -> (1 - fx) * fy; else -> fx * fy }
-                    if (tx < 0 || ty < 0 || tx >= W2 || ty >= H2 || wt <= 0) continue
-                    val q = ty * W2 + tx
-                    acc[q * 3] += f.d[o] * wt; acc[q * 3 + 1] += f.d[o + 1] * wt; acc[q * 3 + 2] += f.d[o + 2] * wt; wsum[q] += wt
-                }
-            } else {
-                val x0 = jsRound(X); val y0 = jsRound(Y)
-                for (ty in y0 - rad..y0 + rad) {
-                    if (ty < 0 || ty >= H2) continue
-                    for (tx in x0 - rad..x0 + rad) {
-                        if (tx < 0 || tx >= W2) continue
-                        val wt = exp(-((tx - X).pow(2) + (ty - Y).pow(2)) / (2 * sig * sig))
-                        val q = ty * W2 + tx
-                        acc[q * 3] += f.d[o] * wt; acc[q * 3 + 1] += f.d[o + 1] * wt; acc[q * 3 + 2] += f.d[o + 2] * wt; wsum[q] += wt
+    // the part of the S× result to build: the registration region, or the whole frame
+    val crop = hasRoi && p.str("output", "frame") == "region"
+    val ix0 = if (crop) max(0, min(w - 1, floor(roi.x).toInt())) else 0
+    val iy0 = if (crop) max(0, min(h - 1, floor(roi.y).toInt())) else 0
+    val ix1 = if (crop) max(ix0 + 1, min(w, ceil(roi.x + roi.w).toInt())) else w
+    val iy1 = if (crop) max(iy0 + 1, min(h, ceil(roi.y + roi.h).toInt())) else h
+    val ox0 = ix0 * S; val oy0 = iy0 * S; val ow = (ix1 - ix0) * S; val oh = (iy1 - iy0) * S
+    val heap = Runtime.getRuntime().maxMemory()
+    val outBytes = ow.toLong() * oh * 16
+    if (outBytes > heap * 0.4) throw IllegalStateException("a ${ow}×${oh} result (${outBytes shr 20} MB) does not fit in the memory of this device. " +
+        (if (crop) "Draw a smaller registration region or lower the Scale Factor." else "Draw a Registration Region on the object and set Output to “Registration region only”, or lower the Scale Factor."))
+    // bands of output rows whose sums (3 color sums and the weight sum, double precision) fit in an eighth of the heap
+    val budget = superResBandBytes.takeIf { it > 0 } ?: max(8L shl 20, heap / 8)
+    val bandRows = max(1, min(oh.toLong(), budget / (ow.toLong() * 32)).toInt())
+    val passes = (oh + bandRows - 1) / bandRows
+    val gauss = p.str("kernel") != "bilinear"
+    val sig = 0.6 * S; val rad = ceil(sig * 2).toInt(); val den = 2 * sig * sig
+    val shifts = arrayOfNulls<Shift>(n); val skip = BooleanArray(n)
+    val out = Frame.alloc(ow, oh, true)
+    for (pass in 0 until passes) {
+        val r0 = oy0 + pass * bandRows; val r1 = min(oy0 + oh, r0 + bandRows) // rows of the S× result
+        val rows = r1 - r0
+        val acc = DoubleArray(ow * rows * 3); val wsum = DoubleArray(ow * rows)
+        for (k in 0 until n) {
+            if (ctx.isStale()) throw Cancelled()
+            if (skip[k]) continue
+            val f = if (k == 0) ref else s.getFrame(k)
+            if (f.w != w || f.h != h) { skip[k] = true; continue }
+            val sh = shifts[k] ?: (if (k == 0) Shift(0.0, 0.0, 1.0) else phaseCorrelate(refWin, hannWindowed(luma(f), w, h, cx, cy, RW, RH), RW, RH)).also { shifts[k] = it }
+            val d = f.d
+            Par.forRows(rows) { a, b ->
+                val ga = r0 + a; val gb = r0 + b // this task owns result rows [ga, gb): no other task writes them
+                val ex = DoubleArray(2 * rad + 2); val ey = DoubleArray(2 * rad + 2)
+                for (y in 0 until h) {
+                    val Y = (y - sh.dy + 0.5) * S - 0.5
+                    if (gauss) {
+                        val yc = jsRound(Y)
+                        val lo = max(max(yc - rad, ga), 0); val hi = min(min(yc + rad, gb - 1), H2 - 1)
+                        if (lo > hi) continue
+                        for (ty in lo..hi) ey[ty - lo] = exp(-((ty - Y) * (ty - Y)) / den)
+                        for (x in 0 until w) {
+                            val X = (x - sh.dx + 0.5) * S - 0.5
+                            val xc = jsRound(X)
+                            val xl = max(max(xc - rad, ox0), 0); val xh = min(min(xc + rad, ox0 + ow - 1), W2 - 1)
+                            if (xl > xh) continue
+                            for (tx in xl..xh) ex[tx - xl] = exp(-((tx - X) * (tx - X)) / den)
+                            val o = (y * w + x) * 4
+                            val vr = d[o].toDouble(); val vg = d[o + 1].toDouble(); val vb = d[o + 2].toDouble()
+                            for (ty in lo..hi) {
+                                val wy = ey[ty - lo]; val rq = (ty - r0) * ow - ox0
+                                for (tx in xl..xh) {
+                                    val wt = ex[tx - xl] * wy; val q = rq + tx
+                                    acc[q * 3] += vr * wt; acc[q * 3 + 1] += vg * wt; acc[q * 3 + 2] += vb * wt; wsum[q] += wt
+                                }
+                            }
+                        }
+                    } else {
+                        val yf = floor(Y).toInt(); val fy = Y - yf
+                        if (yf + 1 < ga || yf >= gb) continue
+                        for (x in 0 until w) {
+                            val X = (x - sh.dx + 0.5) * S - 0.5
+                            val xf = floor(X).toInt(); val fx = X - xf
+                            val o = (y * w + x) * 4
+                            for (t in 0 until 4) {
+                                val tx = xf + (t and 1); val ty = yf + (t shr 1)
+                                val wt = when (t) { 0 -> (1 - fx) * (1 - fy); 1 -> fx * (1 - fy); 2 -> (1 - fx) * fy; else -> fx * fy }
+                                if (tx < 0 || ty < 0 || tx >= W2 || ty >= H2 || wt <= 0) continue
+                                if (ty < ga || ty >= gb || tx < ox0 || tx >= ox0 + ow) continue
+                                val q = (ty - r0) * ow + tx - ox0
+                                acc[q * 3] += d[o] * wt; acc[q * 3 + 1] += d[o + 1] * wt; acc[q * 3 + 2] += d[o + 2] * wt; wsum[q] += wt
+                            }
+                        }
                     }
                 }
             }
+            ctx.progress("Super resolution", (pass * n + k + 1).toDouble() / (passes * n))
         }
-        ctx.progress("Super resolution", (k + 1).toDouble() / n)
+        // blend with the bicubic enlargement of the first frame (this band of it)
+        val base = resizeRegion(ref, W2, H2, Interp.BICUBIC, ox0, r0, ow, rows)
+        Par.forRows(rows) { a, b ->
+            for (row in a until b) for (xx in 0 until ow) {
+                val q = row * ow + xx; val bq = q * 4; val o = ((row + r0 - oy0) * ow + xx) * 4
+                val ws = wsum[q]; val blend = min(1.0, ws / 0.5)
+                for (c in 0 until 3) out.d[o + c] = (if (ws > 1e-6) acc[q * 3 + c] / ws * blend + base.d[bq + c] * (1 - blend) else base.d[bq + c].toDouble()).toFloat()
+            }
+        }
     }
-    val base = resize(ref, W2, H2, Interp.BICUBIC)
-    val out = Frame.alloc(W2, H2, true)
-    for (q in 0 until W2 * H2) {
-        val ws = wsum[q]; val blend = min(1.0, ws / 0.5)
-        for (c in 0 until 3) out.d[q * 4 + c] = (if (ws > 1e-6) acc[q * 3 + c] / ws * blend + base.d[q * 4 + c] * (1 - blend) else base.d[q * 4 + c].toDouble()).toFloat()
-    }
-    constantStream(out, s.info.copy(width = W2, height = H2), s.meta(0).copy(type = 'I'))
+    constantStream(out, s.info.copy(width = ow, height = oh), s.meta(0).copy(type = 'I'))
 }
 
 // ---------------------------------------------------------------- frame rate / order

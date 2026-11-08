@@ -160,12 +160,14 @@ class Workbench(app: Application) : AndroidViewModel(app) {
         if (id == chainId) return
         val wasPlaying = playing && keepFrame
         stop()
-        chainId = id; filterId = chain?.filters?.lastOrNull()?.id; edit = null
+        chainId = id; filterId = chain?.filters?.lastOrNull()?.id; edit = null; showInput = false
         if (!keepFrame) frame = 0
         requestRender()
         if (wasPlaying) play()
     }
-    fun selectFilter(id: String?) { filterId = id; edit = null; requestRender() }
+    // Show Input is a quick look: it ends when another step is chosen, added or changed (otherwise the viewer keeps
+    // showing the image before a step, and the step seems to do nothing)
+    fun selectFilter(id: String?) { if (id != filterId) showInput = false; filterId = id; edit = null; requestRender() }
     fun seek(i: Int) { val n = render?.info?.frameCount ?: 1; frame = i.coerceIn(0, max(0, n - 1)); requestRender() }
 
     fun addFilter(type: String) {
@@ -173,6 +175,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
         val def = FILTERS[type] ?: return
         if (def.kind == FilterKind.LOADER) { toast("${def.name} starts a new chain: use Open."); return }
         val f = newFilter(type).let { linkDefaults(c, def, it) }
+        showInput = false
         val at = c.filters.indexOfFirst { it.id == filterId }.let { if (it < 0) c.filters.size else it + 1 }
         updateChain(c.id) { it.copy(filters = it.filters.toMutableList().apply { add(at, f) }) }
         filterId = f.id
@@ -220,6 +223,7 @@ class Workbench(app: Application) : AndroidViewModel(app) {
 
     fun setParam(filterId: String, key: String, value: Any?) {
         val c = project.chains.firstOrNull { ch -> ch.filters.any { it.id == filterId } } ?: return
+        if (edit == null) showInput = false
         updateChain(c.id) { it.copy(filters = it.filters.map { f -> if (f.id == filterId) f.copy(params = f.params + (key to value)) else f }) }
     }
 
@@ -262,6 +266,14 @@ class Workbench(app: Application) : AndroidViewModel(app) {
      * Input is on, or a region/line/point of the selected filter is being drawn (its own coordinates).
      */
     val viewFilterId: String? get() = if (viewFinal && edit == null && !showInput) null else filterId
+
+    /** Active steps after the selected one (shown in the final result, not part of the selected step's own output). */
+    val stepsAfterSelected: Int get() {
+        val c = chain ?: return 0
+        val i = c.filters.indexOfFirst { it.id == filterId }
+        if (i < 0) return 0
+        return c.filters.drop(i + 1).count { it.enabled && FILTERS[it.type]?.kind != FilterKind.WRITER }
+    }
 
     fun toggleViewFinal() { viewFinal = !viewFinal; prefs.viewFinal = viewFinal; requestRender() }
 

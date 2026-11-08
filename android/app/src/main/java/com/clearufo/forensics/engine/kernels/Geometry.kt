@@ -111,6 +111,53 @@ fun resize(f: Frame, nw0: Int, nh0: Int, interp: Interp): Frame {
 }
 
 /** Sample a frame at a sub-pixel position. Returns false when outside (and edge mode is off). */
+/**
+ * The part [x0, x0 + rw) × [y0, y0 + rh) of resize(f, nw, nh, interp), computed alone: the same weights and the same
+ * arithmetic, so the values are identical to that region of the whole result (used to build large results in bands).
+ */
+fun resizeRegion(f: Frame, nw: Int, nh: Int, interp: Interp, x0: Int, y0: Int, rw: Int, rh: Int): Frame {
+    require(interp != Interp.NEAREST && (nw != f.w || nh != f.h)) { "resizeRegion: use resize" }
+    val wx = computeWeights(f.w, nw, interp); val wy = computeWeights(f.h, nh, interp)
+    // source rows the output rows need
+    var s0 = Int.MAX_VALUE; var s1 = -1
+    for (y in y0 until y0 + rh) { s0 = min(s0, wy.start[y]); s1 = max(s1, wy.start[y] + wy.count[y] - 1) }
+    val sr = s1 - s0 + 1
+    val tmp = FloatArray(rw * sr * 4)
+    Par.forRows(sr) { a, b ->
+        for (yy in a until b) {
+            val row = (yy + s0) * f.w * 4
+            for (xx in 0 until rw) {
+                val x = xx + x0
+                var r = 0.0; var g = 0.0; var bl = 0.0; var al = 0.0
+                val st = wx.start[x]; val c = wx.count[x]; val base = x * wx.maxTaps
+                for (j in 0 until c) {
+                    val wt = wx.w[base + j].toDouble(); val s = row + (st + j) * 4
+                    r += f.d[s] * wt; g += f.d[s + 1] * wt; bl += f.d[s + 2] * wt; al += f.d[s + 3] * wt
+                }
+                val o = (yy * rw + xx) * 4
+                tmp[o] = r.toFloat(); tmp[o + 1] = g.toFloat(); tmp[o + 2] = bl.toFloat(); tmp[o + 3] = al.toFloat()
+            }
+        }
+    }
+    val out = Frame.alloc(rw, rh, false)
+    Par.forRows(rh) { a, b ->
+        for (yy in a until b) {
+            val y = yy + y0
+            val st = wy.start[y] - s0; val c = wy.count[y]; val base = y * wy.maxTaps
+            for (xx in 0 until rw) {
+                var r = 0.0; var g = 0.0; var bl = 0.0; var al = 0.0
+                for (j in 0 until c) {
+                    val wt = wy.w[base + j].toDouble(); val s = ((st + j) * rw + xx) * 4
+                    r += tmp[s] * wt; g += tmp[s + 1] * wt; bl += tmp[s + 2] * wt; al += tmp[s + 3] * wt
+                }
+                val o = (yy * rw + xx) * 4
+                out.d[o] = r.toFloat(); out.d[o + 1] = g.toFloat(); out.d[o + 2] = bl.toFloat(); out.d[o + 3] = al.toFloat()
+            }
+        }
+    }
+    return out
+}
+
 fun sampleInto(f: Frame, x: Double, y: Double, interp: Interp, out: DoubleArray, edge: Boolean): Boolean {
     val w = f.w; val h = f.h; val d = f.d
     if (!edge && (x < -0.5 || y < -0.5 || x > w - 0.5 || y > h - 0.5)) return false
