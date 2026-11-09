@@ -97,6 +97,9 @@ the caches and running exports are kept.
   list and legacy value against the browser catalog.
 - **EngineTest / CodecTest** cover chain evaluation, caching and invalidation, temporal and link filters,
   error attribution, PNG/TIFF/BMP round trips and `.lfp` read/write, including legacy pinning.
+- **VideoJob** (opt-in: set `CLEARUFO_JOB` to a job file) runs the app's own Video Loader conversion and Extract
+  Channel on a whole video on a computer, frame by frame from raw YUV (decoded with ffmpeg; VP9/H.264/HEVC decoding is
+  bit-exact), and writes YUV with the formula of the app's video export, ready for an encoder. See the class comment.
 - **FoldLayoutScreenshots** (opt-in: add `-Pscreenshots`) renders the app off-device with Robolectric at the Fold3
   inner-screen sizes and postures, and writes PNGs to `app/build/screenshots/`.
 
